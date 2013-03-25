@@ -1,0 +1,332 @@
+<html>
+<!-- Automate change of IP Addresses in Bookmarklets -->
+<head>
+ <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+ <link rel="alternate" type="application/rss+xml" title="BioLogic RSS" href="/biologic.rdf">
+ <link rel="home" title="Home" href="http://www.cicada.com/">
+
+ <link rel="stylesheet" type="text/css" href="/open/css/default.css"  media="screen">
+ <link rel="stylesheet" type="text/css" href="/open/css/print.css"  media="print">
+ <link rel="stylesheet" type="text/css" href="/open/css/content.css"  media="all">
+ <link rel="stylesheet" type="text/css" href="/open/css/mcontent.css" title="MezzoTan" media="all">
+ <link rel="stylesheet" type="text/css" href="/open/css/template.css"  media="screen">
+ <link rel="stylesheet" type="text/css" href="/open/css/mtemplate.css" title="MezzoTan" media="screen">
+
+ <title>BioLogic ILP</title>
+ <title>BioLogic -- An Inductive Logic Programming Workbench for Bioinformatics</title>
+
+
+<script TYPE="text/javascript">
+<!--
+
+var gUser;
+var gExp;
+var qsParm = new Array();
+var forms;
+
+function GetParam(name)
+{
+  var start= location.search.indexOf("?"+name+"=");
+  if (start<0) start=location.search.indexOf("&"+name+"=");
+  if (start<0) return '';
+  start += name.length+2;
+  var end=location.search.indexOf("&",start)-1;
+  if (end<0) end=location.search.length;
+  var result=location.search.substring(start,end);
+  var result='';
+  for(var i=start;i<=end;i++) {
+    var c=location.search.charAt(i);
+    result=result+(c=='+'?' ':c);
+  }
+  return unescape(result);
+}
+
+function make_visible(me) {
+      var e = document.getElementById(me)
+      if (e != null) {
+           e.style.visibility = 'visible';
+      }
+}
+
+function flashOn(me) { me.style.color='red';}
+
+function flashOff(me){ me.style.color='blue'; }
+
+function updateUserExp(user, exp) {
+   if (user.length > 0 && exp.length > 0) {
+       var params = "user="+user+"&experiment="+exp;
+       var links = document.body.getElementsByTagName("a");
+       var l;
+       for( l = 0; l < links.length; l++) {
+         links[l].href = links[l].href.replace(/user=[^'"#]*/,encodeURI(params));
+       }
+
+       forms = document.body.getElementsByTagName("form");
+       var f;
+       for( f = 0; f < forms.length; f++) {
+         var e;
+         for ( e = 0; e < forms[f].elements.length; e++) {
+           setUsual(forms[f].elements[e], 'user', user);
+           setUsual(forms[f].elements[e], 'experiment', exp);
+         }
+       }
+   }
+}
+
+
+function qs() {
+
+   var url  = GetParam('url');
+   var user = GetParam('user');
+   gUser = escape(user);
+   var exp  = GetParam('experiment');
+   gExp = exp; 
+   window.status = 'user='+user+'&experiment='+ exp + '&url='+document.location.href;
+   updateUserExp(user, exp);
+   if (user == 'pbr@cicada.com') {
+      make_visible('piana1');
+      make_visible('admin');
+   }
+}
+
+function setUsual(item, key, value) {
+       if (value.length == 0) return;
+       if (item.name == key) item.value = value;
+}
+-->
+</script>
+<style>
+  td        { text-align: center; }
+  #guide    { background-color:#FFDDBB }
+  #guide th { color:#448844 }
+  #motivation      { background-color:#DDDDFF }
+  #motivation  th  { color:#884444 }
+  #public          { background-color:#DDFFDD }
+  #public th       { color:#444488 }
+  
+  #footer       {
+                width: 100%;
+                text-align: center;
+                top: auto;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                }
+</style>
+</head>
+
+<body id="biologic-cicada-com" class="deepLevel nomenu" onload="qs();return true;">
+<div id="container">
+  <div id="header">
+   <a href="implication.html" title="Return to home page" accesskey="1">
+    <img src="images/biologictan.png" width="140" height="92" alt="Molecular Implication Symbol :-"/>
+   </a>
+  <div id="tools">
+    <ul id="mainNav">
+        <li><a href="../secure/admin.pl?user="  id="admin" title="Admin">Admin</a></li>
+        <li><a href="/cgi-bin/logout.pl?user="   id="logout" title="Logout">Logout</a></li>
+
+     <li>
+  <a href="/cgi-bin/testPiana.pl?user=peter&experiment=1" id="piana1" title="Test Piana DB" style="visibility:hidden;">
+	Piana
+	</a>
+     </li>
+
+     <li><a href="/BioLogic/allDB.html?user=peter" id="alldb" title="All Databases" >allDB</a></li>
+     <li><a href="/BioLogic/exp.html?user=peter" id="oldexp" title="Select Experiment">Experiments</a></li>
+     <li><a href="describe.html?user=peter" title="Overview of the BioLogic System">BioLogic</a></li>
+   </ul>
+
+
+  <div id="sf">
+   <form id="search" method="get" action="../cgi-bin/exp_search.pl">
+      <label for="q" title="Search BioLogic Databases">search bioLogic: </label>
+      <input type="hidden" name="sitesearch" value="biologic.cicada.com">
+      <input type="hidden" name="user" value="lewis@cicada.com">
+      <input type="hidden" name="experiment" value="3">
+      <input type="text" id="q" name="q" accesskey="s" size="30">
+      <input type="submit" id="submit" value="go">
+   </form>
+
+   <form id="search" method="get" action="../cgi-bin/truename.pl">
+     <label for="name" title="Find the Canonical Name for Something">TrueName: </label>
+     <input type="hidden" name="user" value="lewis@cicada.com">
+     <input type="hidden" name="experiment" value="3">
+     <input type="text" id="name" name="name" accesskey="name" size="20">
+     <input type="submit" id="submit" value="go">
+   </form>
+  </div>
+
+   <div align="left" style="{position:relative; left:0px}">
+   <form id="pref" method="get" action="../cgi-bin/create_preferences.pl">
+     <input type="hidden" name="user" value="lewis@cicada.com">
+     <input type="hidden" name="experiment" value="3">
+     <input type="submit" id="submit" value="options">
+   </form>
+   </div>
+
+  </div id="tools">
+ </div id="header">
+</div id="container">
+
+<div id="mainContent">
+
+    <table>
+      <tr>
+        <td valign="top">
+<!--         <a  href="http://genome-www5.stanford.edu/resources/databases.shtml">
+-->
+	  <img border="0" src="images/bl_array2.jpg" alt="MicroArray - Gene Expression Data">
+	</td>
+	<td>
+          <div id="bioLogicIntro" style="font-weight:bold">
+            <font color=darkgreen>BioLogic</font>
+            is Cicada's inductive logic programming (ILP) system for bioinformatics.  It
+            collects data from arbitrary public and private bioinformatics sites, maintains
+            a database of examples and background knowledge and runs induction algorithms
+            to generate new knowledge. It presents induced rules as annotated natural
+            language phrases with links to confidence calculations and original sources.
+<p>
+<!--
+  <font color="red">
+    Sorry, the Database is currently offline. Many functions will not work.
+  </font>
+-->
+          </div id="bioLogicIntro">
+        </td>
+      </tr>
+    </table>
+
+<p>
+
+<table>
+<tr>
+ <td width="40%">
+
+  <table id="guide" border=2 cellpadding=8>
+   <tr>
+    <th>
+     The BioLogic ILP System
+    </th>
+   </tr>
+
+   </td>
+   <tr>
+    <td>
+   <a href="/htdocs/theprocess.html">Overview</a>: A high-level view of the BioLogic ILP system.
+    </td>
+   </tr>
+   <tr>
+    <td>
+   <a href="/BioLogic/using.html?user=pbr">
+   Using the BioLogic System</a>: A step-by-step guide to creating and running Inductive Logic Programming experiments.
+    </td>
+   </tr>
+
+  </table>
+
+  <p>
+
+  <table id="motivation" border=2 cellpadding=8 align=center>
+
+   <tr>
+    <th>
+     Motivation
+    </th>
+   </tr>
+<!-- href="http://www.irisa.fr/lande/ferre/introduction_ilp.ppt" -->
+
+   <tr>
+    <td>
+     <a href="/BioLogicDoc/introILP.ppt">Introduction to ILP</a>
+    </td>
+   </tr>
+
+   <tr>
+    <td>
+     <a href="/BioLogicDoc/drugdesign.pdf">Drug Design by Machine Learning</a>
+    </td>
+   </tr>
+
+   <tr>
+    <td>
+     <a href="trains.html?user=pbr@cicada.com&experiment=1" 
+    onmouseover="this.T_FONTWEIGHT='bold';this.T_WIDTH=80; return escape('<img src=\'engine.jpg\'>');">
+    Michalski's Train</a>: Classic ILP Example.
+    </td>
+   </tr>
+
+   <tr>
+    <td>
+     <a href="http://www.pharmadm.com/default.asp">Similar work</a> being done by 
+     <a href="luc.html">colleagues</a>.
+    </td>
+   </tr>
+
+  </table>
+
+ </td>
+ <td>&nbsp;</td>
+ <td width="60%">
+  <table id="public" border="2">
+   <tr><th colspan="2"><b>Public BioInformatics Databases</b></td></tr>
+   <tr><td><a href="http://www.hprd.org">HPRD</a></td>
+      <td>Human Protein Reference Database</td></tr>
+
+   <tr><td><a href="http://bond.unleashedinformatics.com/">BOND(BIND)</a></td>
+      <td>The Biomolecular Object Network Database</td></tr>
+
+   <tr><td><a href="http://www.ensembl.org/">Ensembl</a></td>
+      <td>EBI and the Sanger Institute</td></tr>
+
+   <tr><td><a href="http://www.geneontology.org/">GO</a></td>
+      <td>The Gene Ontology</td></tr>
+
+   <tr><td><a href="ftp://ftp.ebi.ac.uk/pub/databases/swissprot/release/">UNIPROT</a></td>
+      <td>The UniProt Universal Protein Resource</td></tr>
+   <tr><td></td>
+      <td>
+       <font font-weight="bold" size="-4">
+       <table cellspacing="8" border="2" align="center">
+        <tr><td width="8">EBI</td><td>European Bioinformatics Institute</td></tr>
+        <tr><td>SIB</td><td>Swiss Institute of Bioinformatics</td></tr>
+        <tr><td>PIR</td><td>Protein Information Resource</td></tr>
+       </table>
+       </font>
+      </td></tr>
+
+   <tr><td><a href="ftp://ftp.ncbi.nih.gov/refseq/LocusLink/">LocusLink</a></td>
+      <td>NCBI Gene Locus Identifier Mappings</td></tr>
+
+   <tr><td><a href="http://www.genome.jp/kegg/">KEGG</a></td>
+      <td>Kyoto Encyclopedia of Genes and Genomes</td></tr>
+ 
+   <tr><td><a href="http://psidev.sourceforge.net">PSI</a></td>
+      <td>Proteomics Standards Initiative</td></tr>
+
+   <tr><td><a href="http://reactome.org/cgi-bin/frontpage">Reactome</a></td>
+      <td>Curated Knowledgebase of Biological Pathways</td></tr>
+
+   <tr><td><a href="http://www.empproject.com/">EMP<a></td>
+      <td>Enzyme and Metabolic Pathways</td></tr>
+
+   <tr><td><a href="http://genome-www5.stanford.edu/resources/databases.shtml">SMD</a></td>
+      <td>Stanford Microarray Databases</td></tr>
+
+   <tr><td><a href="http://srs.ebi.ac.uk/srsbin/cgi-bin/wgetz?-page+databanks">SRS EMBL-EBI</a></td>
+      <td>Sequence Retrieval System Databank Collection</tr>
+   </table>
+
+  </td>
+ </tr>
+</table>
+
+     <a href="/Hummingbird/Hummingbird.html"><img src="/Hummingbird/images/smallhbird.jpg">
+      Check out the Hummingbird Project
+     </a>
+
+    <!--#include file="footer.html" -->
+
+  </div id="MainContent">
+ </body>
+</html>

@@ -1,0 +1,117 @@
+<html>
+<head>
+<style>
+body  { margin-left: 140; margin-right: 140; }
+h1    { text-align: center; }
+h2    { text-align: center; }
+h3    { text-align: center; }
+</style>
+</head>
+
+<body bgcolor=lightgray>
+<center>
+<img src="/open/images/biologic1.png">
+</center>
+<h1>Prolog implementation of BioLogic ILP Server</h1>
+<p>
+The original BioLogic System consisted of 20,000
+lines of code including 50 HTML files and Perl CGI scripts.
+<p>
+Since SWI-Prolog is available on Windows, Linux, and OSX,
+and contains an HTTP server with CGI features, it allows us
+to implement the complete BioLogic ILP system entirely in Prolog.
+<p>
+<h2>The Principal Components of the BioLogic ILP System</h2>
+<ol>
+ <li>Web Server: SWI-Prolog HTTP server
+  <ul>
+   <li>User Administration</li>
+   <li>Creating Experiments</li>
+  </ul>
+ </li>
+ <li>Inductive Logic Programming: ALEPH / Progol / Golem, etc.</li>
+
+ <li>Postgres or mySQL Database (via Prolog/ODBC)
+  <ul>
+   <li>Persistance</li>
+   <li>Distributed Computing</li>
+  </ul>
+ </li>
+</ol>
+
+All principal components except the database 
+
+<hr size=4 width=400>
+<h2>Test links for a BioLogic server running on <b>localhost</b></h2>
+<ul>
+<li><a href="http://localhost/open/index.pl">INDEX</a></li>
+<li><a href="http://localhost/open/search.html?pattern=stream">
+	Search (apropos "stream")</a></li>
+<li><a href="http://localhost/secure/status.pl">Status</a></li>
+<li><a href="http://localhost/secure/die.pl">Toggle Debug</a></li>
+<li><a href="http://localhost/open/README.html">This Document</a></li>
+</ul>
+
+<hr size=4 width=400>
+<h2>BioLogic System Files</h2>
+<h3>File name (link)    (lines of code)   Description</h3>
+
+<ul>
+<li><a href="http://localhost/secure/httpd.txt">httpd</a>
+(33) - The web server</li>
+<li><a href="http://localhost/secure/webspec.txt">webspec</a>
+(57) -- Handlers for CGI/HTML/text/javascript -- Secured/Unsecured</a></li>
+<li><a href="http://localhost/secure/pbio.txt">
+database/pbio</a>
+(93) - The database interface</li>
+<li>database/passwords(2) -- Biologic user and database passwords
+(this file is never checked into a source management system).</li>
+
+<ul>
+<li>BioLogic/Database User</li>
+<li>BioLogic/Database Administrator</li>
+<li>Developer</li>
+</ul>
+<li>Induction Algorithms</li>
+<ul>
+<li>ilp/Aleph</li>
+<li>ilp/Foil</li>
+<li>ilp/Golem</li>
+<li>ilp/Progol</li>
+</ul>
+</ul>
+</center>
+
+<h2>Linux/Windows issues</h2>
+<p>
+Working system on Windows (swi5.8) was checked into github,
+then when downloaded to Ubuntu Linux (swi5.11):
+<ol>
+<li>blob/2 not found in swi-prolog 5.8, downloaed and compiled
+development version 5.11 to get the Blob.</li>
+
+<li>predicate/5 found in library(helpidx) was not in 5.11
+had to be copied over from swi-prolog 5.8 and explicitly
+loaded by file apropos (support for httpd apropos.html URL).</li>
+</ol>
+<p>
+No changes to source code were required.
+
+<h2>DATABASE: PostgreSQL</h2>
+
+<pre>
+$ psql [postgres]
+> CREATE DATABASE pbio WITH OWNER peter;
+> \q
+$ psql pbio
+> CREATE TABLE gindex with (findex INTEGER, gtext VARCHAR(80));
+> \q
+
+# DUMP as super(-U)ser (postgres) -C(reate DB) -f(ile) <file> <Database>
+$ pg_dump -U postgres -C -f pbio.backup pbio
+
+# RESTORE -d(atabase) pbio as super(-U)ser postgres from -f(ile) pbio.backup
+$ psql -d pbio -U postgres -f pbio.backup
+</pre>
+</body>
+</html>

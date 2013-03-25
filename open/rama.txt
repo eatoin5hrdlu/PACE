@@ -1,0 +1,6 @@
+/bin/bash
+echo wget --post-data 'chkbutton="PDB"&filename="1C4F"&expdta="X-RAY DIFFRACTION               "&residuetype="all"&residue="ALA"&residue1="Any residue"&residue2="Any residue"&residue3="Any residue"&chaincount="1"&nmrflag="0"' http://dicsoft1.physics.iisc.ernet.in/rp/servlet/phipsi/
+
+wget --post-data 'chkbutton="PDB"&filename="1C4F"&expdta="X-RAY DIFFRACTION               "&residuetype="all"&residue="ALA"&residue1="Any residue"&residue2="Any residue"&residue3="Any residue"&chaincount="1"&nmrflag="0"' http://dicsoft1.physics.iisc.ernet.in/rp/servlet/phipsi/
+
+

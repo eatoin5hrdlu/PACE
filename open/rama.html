@@ -1,0 +1,284 @@
+<html>
+<head><Title>Ramachandran Plot</title>
+<script Language=JavaScript>
+function selectapp1(obj) {
+document.rpform.structureselection[1].checked=true;
+obj.checked = true;}
+function selectapp(obj) {
+document.rpform.structureselection[1].checked=true;}
+function deselect() {
+document.rpform.c0.checked = false;
+}
+function selectall() {
+document.rpform.c0.checked = true;
+document.rpform.start0.value =   16 ;
+document.rpform.end0.value =  245 ;
+}
+function checkall(){
+selected = false;
+fullnucleic = true;
+fullnucleic = false;
+if(document.rpform.c0.checked==true){selected=true;}
+if (fullnucleic == true) { alert("'1BRA' is a nucleic acid file"); return false;}
+if (selected==false){alert("Please, select some chains for plot"); return false;}
+}
+function Eregion()
+{
+ if(document.rpform.regions.checked==true)
+ {
+   document.rpform.rhelix.checked=false;
+   document.rpform.sheet.checked=false;
+   document.rpform.lhelix.checked=false;
+   document.rpform.fully.checked=false;
+   document.rpform.additional.checked=false;
+   document.rpform.generous.checked=false;
+   document.rpform.disallowed.checked=false;
+	document.rpform.withgly.checked=false;
+	document.rpform.withoutgly.checked=false;
+ }
+ else {document.rpform.fully.checked=true}
+}
+function fullyregion()
+{
+  if(document.rpform.fully.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+  }
+  if(document.rpform.additional.checked==true && document.rpform.generous.checked==true && document.rpform.disallowed.checked==true)
+  {
+     document.rpform.regions.checked=true;
+     document.rpform.fully.checked=false;
+     document.rpform.additional.checked=false;
+     document.rpform.generous.checked=false;
+     document.rpform.disallowed.checked=false;
+	  document.rpform.withgly.checked=false
+	  document.rpform.withoutgly.checked=false
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function additionregion()
+{
+  if(document.rpform.additional.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+  }
+  if(document.rpform.fully.checked==true && document.rpform.generous.checked==true && document.rpform.disallowed.checked==true)
+  {
+     document.rpform.regions.checked=true;
+     document.rpform.fully.checked=false;
+     document.rpform.additional.checked=false;
+     document.rpform.generous.checked=false;
+     document.rpform.disallowed.checked=false;
+	  document.rpform.withgly.checked=false
+	  document.rpform.withoutgly.checked=false
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function generousregion()
+{
+  if(document.rpform.generous.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+  }
+  if(document.rpform.additional.checked==true && document.rpform.fully.checked==true && document.rpform.disallowed.checked==true)
+  {
+     document.rpform.regions.checked=true;
+     document.rpform.fully.checked=false;
+     document.rpform.additional.checked=false;
+     document.rpform.generous.checked=false;
+     document.rpform.disallowed.checked=false;
+	  document.rpform.withgly.checked=false
+	  document.rpform.withoutgly.checked=false
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function disallowedregion()
+{
+  if(document.rpform.disallowed.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+document.rpform.withgly.checked=true
+document.rpform.withoutgly.checked=false
+  }
+  if(document.rpform.additional.checked==true && document.rpform.generous.checked==true && document.rpform.fully.checked==true)
+  {
+     document.rpform.regions.checked=true;
+     document.rpform.fully.checked=false;
+     document.rpform.additional.checked=false;
+     document.rpform.generous.checked=false;
+     document.rpform.disallowed.checked=false;
+	  document.rpform.withgly.checked=false
+	  document.rpform.withoutgly.checked=false
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function Alpharegion()
+{
+  if(document.rpform.rhelix.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.fully.checked=false;
+    document.rpform.additional.checked=false;
+    document.rpform.generous.checked=false;
+    document.rpform.disallowed.checked=false;
+	 document.rpform.withgly.checked=false;
+	 document.rpform.withoutgly.checked=false;
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function Betaregion()
+{
+  if(document.rpform.sheet.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.fully.checked=false;
+    document.rpform.additional.checked=false;
+    document.rpform.generous.checked=false;
+    document.rpform.disallowed.checked=false;
+	 document.rpform.withgly.checked=false;
+	 document.rpform.withoutgly.checked=false;
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function threetenregion()
+{
+  if(document.rpform.lhelix.checked==true)
+  {
+    document.rpform.regions.checked=false;
+    document.rpform.additional.checked=false;
+    document.rpform.generous.checked=false;
+    document.rpform.disallowed.checked=false;
+    document.rpform.fully.checked=false;
+	 document.rpform.withgly.checked=false;
+	 document.rpform.withoutgly.checked=false;
+  }
+  if(document.rpform.fully.checked==false && document.rpform.additional.checked==false && document.rpform.generous.checked==false && document.rpform.disallowed.checked==false && document.rpform.rhelix.checked==false && document.rpform.sheet.checked==false && document.rpform.lhelix.checked==false && document.rpform.withgly.checked==false && document.rpform.withgly.checked==false)
+  {document.rpform.regions.checked=true}
+}
+function withglypro()
+{
+  if(document.rpform.withgly.checked==true)
+  {
+    document.rpform.withoutgly.checked=false;
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+    document.rpform.disallowed.checked=true;
+  }
+  if(document.rpform.withgly.checked==false)
+  {
+    document.rpform.withoutgly.checked=true;
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+    document.rpform.disallowed.checked=true;
+  }
+}
+function withoutglypro()
+{
+  if(document.rpform.withoutgly.checked==true)
+  {
+    document.rpform.withgly.checked=false;
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+    document.rpform.disallowed.checked=true;
+  }
+  if(document.rpform.withoutgly.checked==false)
+  {
+    document.rpform.withgly.checked=true;
+    document.rpform.regions.checked=false;
+    document.rpform.rhelix.checked=false;
+    document.rpform.sheet.checked=false;
+    document.rpform.lhelix.checked=false;
+    document.rpform.disallowed.checked=true;
+  }
+}
+</script>
+</head>
+<body bgcolor=f6ede6>
+<br>
+<center><img src=/rp/images/rpnew.gif border=0></img></center>
+<br>
+<form name=rpform method=post target=_top action=/open/rama.txt>
+<input type=hidden name=chkbutton value="PDB">
+<input type=hidden name=filename value="1BRA">
+<input type=hidden name=expdta value="X-RAY DIFFRACTION               ">
+<input type=hidden name=residuetype value="all">
+<input type=hidden name=residue value="ALA">
+<input type=hidden name=residue1 value="Any residue">
+
+<input type=hidden name=residue2 value="Any residue">
+<input type=hidden name=residue3 value="Any residue">
+<input type=hidden name=chaincount value="1">
+<input type=hidden name=nmrflag value="0">
+<table align=center><tr><td>
+<table align=center cellspacing=0 >
+<tr><td align=right><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier>PDB-ID CODE</font></b></td><td><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier>&nbsp;: &nbsp;&nbsp;1BRA</font></b></td></tr>
+<tr><td><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier>EXPERIMENT</font></b></td><td><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier>&nbsp;: &nbsp;&nbsp;X-RAY DIFFRACTION               </font></b></td></tr>
+</table>
+</td></tr></table>
+<br>
+
+<table align=center cellspacing=0>
+<tr><td valign=top colspan=4><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=radio name=structureselection value=all checked onClick='selectall();'> Entire protein structure<br></font></b></td></tr>
+<tr><td valign=top colspan=4><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=radio name=structureselection value=some onClick='deselect();'> Particular chains<br><br></font></b></td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox NAME=c0 checked onClick='selectapp(this);'></font></b></td>
+<td><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier>Chain A (  16  -  245 ) </font></b></td><td><b><input type=text name=start0 size=5 value=  16  onFocus='selectapp1(document.rpform.c0);'><font color=black face=britanic,helvetica,sans-serif,times,gill,courier>&nbsp; to &nbsp;</font><input typr=text name=end0 SIZE=6 value= 245  onFocus='selectapp1(document.rpform.c0);'><font color=red face=britanic,helvetica,sans-serif,times,gill,courier> </font><input type=hidden name=chain0 value="A"></b></td></tr>
+</table>
+<br>
+<center><table align=center>
+<tr><td><b><font color=navy face=britanic,helvetica,sans-serif,times,gill,courier>Display Conformation angles in the</font></td></tr>
+
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=regions value=1 checked onClick=Eregion()>&nbsp;&nbsp;Entire region</td></b></tr>
+<tr><td><table><td width=80></td><td><div id=magic style='border:1px solid red; overflow: auto; width: 350; height:150'><b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=fully value=2 onClick=fullyregion()>&nbsp;&nbsp;Fully allowed region</b><br>
+<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=additional value=3 onClick=additionregion() >&nbsp;&nbsp;Additionally allowed region</b><br>
+<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=generous value=4 onClick=generousregion()>&nbsp;&nbsp;Generously allowed region</b><br>
+<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=disallowed value=5 onClick=disallowedregion()>&nbsp;&nbsp;Disallowed region</b><br>
+<font color=black face=britanic,helvetica,sans-serif,times,gill,courier>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type=checkbox name=withgly value=9 onClick=withglypro()>&nbsp;&nbsp;with Glycine and Proline residues<br>
+<font color=black face=britanic,helvetica,sans-serif,times,gill,courier>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type=checkbox name=withoutgly value=10 onClick=withoutglypro()>&nbsp;&nbsp;without Glycine and Proline residues</div></td></table></td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=rhelix value=6  onClick=Alpharegion()>&nbsp;&nbsp;Alpha Helical region</td></tr>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=sheet value=7 onClick=Betaregion()>&nbsp;&nbsp;Beta Sheet region</td></tr>
+
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><font color=black face=britanic,helvetica,sans-serif,times,gill,courier><input type=checkbox name=lhelix value=8 onClick=threetenregion()>&nbsp;&nbsp;3<sub>10</sub> Helical region</td></tr>
+</table></center>
+<br>
+<table align=center>
+<tr><td colspan=4 align=center><b><font face=britanic,helvetica,sans-serif,times,gill,courier><input type=submit value='Plot' onClick='return checkall();'>&nbsp;&nbsp;<input type=reset value='Clear'></font></b></TD></TR>
+</table>
+<br>
+<table border=0 align=right><tr><td><a href='JavaScript:history.go(-1);'><img src=/rp/images/button_1.gif border=0></a>&nbsp;&nbsp;&nbsp;<a href=/rp/index.html><img src=/rp/images/home_1.gif border=0></a></td></tr></table>
+</form></body></html>
+
+
+
+
+
+
+
+
+
+
+
+

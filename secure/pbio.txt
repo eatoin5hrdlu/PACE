@@ -1,0 +1,93 @@
+:- module(pbio, [add_lookup/2,    add_insert/3,
+   		 remove_lookup/1, remove_insert/1,
+		 test1/0, test2/0, test3/0         ]).
+:- use_module(library(odbc)).
+
+%
+% CONNECT TO DATABASE pbio (and test the connection).
+%
+:- odbc:odbc_current_connection(_,_)
+   -> writeln('connected')
+   ; odbc:odbc_connect(pbio, _, [ user(peter),
+     			     password('15kkd43.'),
+			     alias(pbio)            ]),
+     odbc:odbc_query(pbio, 'select * from gindex', Data),
+     format('~n~q~n~n', 'Verifying Database Connection gindex'(Data) ).
+
+closedb :- odbc_disconnect(pbio).
+
+%
+% ADD NEW PREDICATES (to module "user") FOR INSERTING DATA 
+%
+add_insert(Functor/Arity, SQL, Types) :-
+    abolish(user:(Functor/Arity)),
+    odbc_prepare(pbio, SQL, Types, Stmt),
+    length(Types, Arity),  % verify
+    length(Args, Arity),   % create variables
+    Head =.. [Functor|Args],
+    assert(user:(Head :- odbc_execute(Stmt,Args))).
+
+remove_insert(Functor/Arity) :- abolish(user:(Functor/Arity)).
+%
+% FOR RETRIEVING DATA 
+%
+add_lookup(Functor/Arity, SQL) :- 
+    abolish(user:(Functor/Arity)),
+    odbc_prepare(pbio, SQL, [], Stmt),
+    length(Args, Arity),   % create variables
+    Head =.. [Functor|Args],
+    assert(user:(Head :- odbc_execute(Stmt,[],Result),Result =..[row|Args])).
+
+remove_lookup(Functor/Arity) :- abolish(user:(Functor/Arity)).
+
+newget :-  add_lookup( gindex/2, 'select * from gindex').
+newset :- add_insert( gindex_set/2,
+                     'insert into gindex values(?,?)',
+		     [integer,varchar(80)]).
+
+%
+% ADD N RANDOMLY GENERATED ITEMS TO THE DATABASE
+%
+
+add(0).      % add(1000) will add 1000 items to the database
+add(N) :-    N > 0,
+             newsymbol(N, Rand, Gensym),
+	     pbio:gindex_set(Rand, Gensym),
+	     NN is N - 1,
+	     add(NN).
+
+:- use_module(library(lists)).  % flatten/2
+
+newsymbol(N, Rand, Gensym) :-
+       	  Rand is random(100),
+	  number_codes(N,NCodes),
+	  number_codes(Rand,RCodes),
+	  flatten(["foo_",NCodes,"_",RCodes], GenCodes),
+	  atom_codes(Gensym, GenCodes).
+
+test1 :- newget, newset.
+test2 :-
+	setof(A:B,gindex(A,B),Bag),  % Unique, sorted
+%	bagof(A:B,gindex(A,B),Bag),  % All of them
+%	setof(A,B^gindex(A,B),Bag),  % Just the indexes
+%	bagof(A,B^gindex(A,B),Bag),  % All the indexes
+%	findall(A,gindex(A,B),Bag),  % same but can succeed with no solutions
+	show_compressed_list(Bag, 4).
+
+test3 :- add(10).
+
+show_compressed_list(List, Size) :-
+	length(List, Length),
+	(Length > Size ->
+		Notshown is Length - Size,
+		Items is Size/2,
+		length(Start, Items),
+		length(End, Items),
+		append(Start, _, List),
+		append(_, End, List),
+		format('~q ...(~q items)... ~q~n',[Start,Notshown,End])
+	;	writeln(List)
+	).
+
+
+

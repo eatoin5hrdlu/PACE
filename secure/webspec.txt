@@ -1,0 +1,56 @@
+:- use_module(library(http/http_dispatch)).
+:- use_module(library(http/http_authenticate)).
+:- multifile debug/0.
+:- dynamic debug/0.
+
+message(F,L) :- debug -> format(user_error, F, L) ; true.
+
+% CSS:  Add the following links to every page (style 'biologic')
+:- multifile user:head//2.
+
+user:head(biologic, Head) -->
+    html(head(
+	[ link([ type('text/css'), rel('stylesheet'), href('default.css') ]),
+	  link([ type('text/css'), rel('stylesheet'), href('template.css') ]),
+	  link([ type('text/css'), rel('stylesheet'), href('mtemplate.css') ]),
+	  link([ type('text/css'), rel('stylesheet'), href('content.css') ]),
+	  link([ type('text/css'), rel('stylesheet'), href('mcontent.css') ]),
+	  link([ type('text/css'), rel('stylesheet'), href('print.css') ])
+	 | Head ])).
+
+emit_text_file(File, _Request) :-
+	see(File),
+	format(current_output, 'Content-type: text/plain~n~n',[]),
+	format(current_output, 'Content-type: text/plain~n~n',[]),
+	repeat,
+		get0(C),
+		( C =:= -1 -> true ; put(C) ),
+	C =:= -1,
+	!,
+	seen.
+
+process_files(WildCard, Security) :-
+	expand_file_name(WildCard, Files),
+	add_handlers(Files, Security).
+
+add_handlers([],_).
+add_handlers([Path|T],Options) :-
+	concat_atom(['/',Path], URL),
+	file_base_name(Path, Base),
+	file_name_extension(Root, Ext, Base),
+	( add_handler(Ext, URL, Root, Path, Options)
+	  -> true
+	  ; message('Did not create a handler for ~w~n',[URL])
+	),
+	add_handlers(T, Options).
+
+add_handler(pl, URL, Root, Path, Options) :-
+	ensure_loaded(Path),
+	http_handler(URL, Root, Options).
+
+add_handler(html, URL, _Root, Path, Options) :-
+	http_handler(URL, http_reply_file(Path,[]), Options).
+
+add_handler(txt, URL, _Root, Path, Options) :-
+	http_handler(URL,http_reply_file(Path,[mime_type(text/plain)]),Options).
+

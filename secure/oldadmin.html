@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1 Strict//EN"
+   "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US">
+<head>
+<!--#set var="mytitle" value="Admin" -->
+<!--#include file="styleheader.html" -->
+
+<h2>Administrative Tools</h2>
+
+<h2><font color="green">Unit Tests</font></h2>
+   <ul>
+    <li><a href="../../cgi-bin/incrTest.pl?user=">IncrementalHtml</a> <i>(give it ~30 seconds)</i></li>
+    <li><a href="../cgi-bin/sqlTest.pl?user=">Check mySQL BioLogic Database</a></li>
+    <li><a href="../cgi-bin/truenameTest.pl?user=">TrueName Test</a></li>
+    <li><a href="../cgi-bin/truename.pl?test=1">TrueName Unit Test</a></li>
+    <li><a href="/cgi-bin/bioutiltest.pl?user=">BioUtil tester</a></li>
+    <li><a href="../../cgi-bin/sdlocal.pl">Shutdown Server</a></li>
+   </ul>
+   <form id="newuser" method="post" action="../cgi-bin/newuser.pl">
+     <label for="email">New user Email: </label>
+     <input type="text" id="email" name="user" value="goedel@cicada.com" size="16">
+     <label for="pw1">Password: </label>
+     <input type="password" id="pw1" name="password1" value="xyzzy" size="10">
+     <label for="pw2">Retype Password: </label>
+     <input type="password" id="pw2" name="password2" value="xyzzy" size="10">
+     <input type="submit" value="Create New Account">
+   </form>
+
+   <layer style="position:absolute; left:360px; top:160px">
+    <font size="+2" color="darkgreen">
+     <p>
+&nbsp;Color Chart
+      <a href="../BioLogicDoc/color.html">
+        <img align="middle" src="../images/colors.jpg"/>
+      </a>
+     </p>
+    </font>
+   </layer>
+
+   <layer style="position:absolute; left:620px; top:140px">
+    <font size="+2" color="darkgreen">
+     <p>
+&nbsp;ASCII Chart
+      <a href="../BioLogicDoc/ascii.html">
+        <img align="middle" src="../images/asciismall.jpg"/>
+      </a>
+     </p>
+    </font>
+   </layer>
+</div>
+
+<style>
+#info {
+        text-align: center;
+      }
+</style>
+
+
+<div id="info">
+ <font color="0066FF" size="+1">
+  <B>
+   <p>BioLogic Version 1.0 currently runs under
+   <a href="../w2k.html"><font color="#0033FF">W</font></a>indows 2000,
+   <a href="../W2KSP4_EN.EXE">ServicePack4</a></p>
+   is written in Perl, Prolog, and Javascript and uses:
+    <ul>
+     <li><a href="http://www.mysql.com/">mySQL</a></li>
+     <li><a href="http://httpd.apache.org/">Apache Web Server</a></li>
+     <li><a href="http://www.activestate.com/Products/ActivePerl/">ActiveState Perl</a></li>
+     <li><a href="http://www.ncc.up.pt/~vsc/Yap/" >YAP Prolog</a></li>
+    </ul>
+
+   <p>
+   My development environment (
+
+   <a href="http://www.cygwin.com/">CYGWIN</a>
+    +
+   <a href="http://www.gnu.org/software/emacs/windows/ntemacs.html">Emacs</a>
+    +
+   <a href="clp.zip">CLP(R)</a>
+
+    ) is as UNIX-like as I can make it.
+   <p>
+   Portablility to UNIX-like systems should be quite easy.
+  </B>
+ </font>
+</div>
+
+<pre>
+
+
+</pre>
+
+
+<div id="footer">
+    <a href="mailto:pbr@cicada.com?subject=BioLogic"
+	onmouseover="flashOn(this)"
+	onmouseout="flashOff(this)">
+     Contact the Author
+    </a>
+  <br>
+    <a id="gscholar" href="http://scholar.google.com/scholar?num=50&hl=en&lr=&q=author%3A%22P+Reintjes%22+OR+%22P+B+Reintjes%22+OR+%22Peter+Reintjes%22%20-author%3A%22GP Reintjes%22%20-author%3A%22Geo+P+Reintjes%22%20-author%3A%22George+Peter+Reintjes%22&btnG=Search"
+	onmouseover="flashOn(this)"
+	onmouseout="flashOff(this)">
+	Google Scholar Listing
+    </a>
+  <br>
+     <a id="footHome" href="/BioLogic/biologic.html?user=pbr"
+	onmouseover="flashOn(this)"
+	onmouseout="flashOff(this)">
+        BioLogic Home
+     </a>
+  <br>
+     <a href="http://www.cicada.com"
+	onmouseover="flashOn(this)"
+	onmouseout="flashOff(this)">
+	<img src="/BioLogic/images/cicadasharp.jpg">
+     </a>
+ <p class="copyright">
+   &copy; 2004-2009 Cicada Consulting Group
+   -- Last modified <!--#echo var="LAST_MODIFIED"-->
+ </p>
+</div id="footer">
+</center>
+<script language="JavaScript" type="text/javascript" src="/wz_tooltip.js"/>
+</script>
+
+<script language="JavaScript" type="text/javascript">
+var start= window.location.pathname.indexOf("biologic.html");
+window.status = window.location + '  ' + start ;
+var e = document.getElementById("gscholar");
+e.style.visibility = "visible";
+if (start<0 && e != null)  e.style.visibility = "hidden";
+</script>
+
+</body>
+</html>

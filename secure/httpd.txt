@@ -1,0 +1,33 @@
+:- use_module(library(http/thread_httpd)).   % Server loop
+:- use_module(library(http/http_dispatch)).  % dispatch table
+:- use_module(library(http/http_header)).    % Terms -> HTML conversion
+:- use_module(library(http/html_write)).     % Terms -> HTML conversion
+:- use_module(library(http/html_head)).      % html_requires//1
+
+:- use_module(pbio).  % THE (POSTGRES) DATABASE
+
+:- ensure_loaded(webspec).  % Term expansion rules for file/CGI specifications
+
+% :- on_signal(int, _, cint).
+%
+% cint(_Signal) :-
+%	writeln('Caught a cntl-C'),
+%	thread_send_message(main, cinter).
+
+stop :-
+	http_stop_server(80,[]),
+	halt.
+
+reload :-
+	http_stop_server(80,[])
+	 -> ( reconsult(httpd), start )
+          ; reconsult(httpd).
+
+% Create the Open/Secure handlers and start the Server
+
+start :- http_server( http_dispatch, [ port(80) ] ).
+
+:- process_files('open/*',   [] ),
+   process_files('secure/*', [authentication(basic(pws,'Secure Page'))]),
+   start.
+

@@ -1,0 +1,100 @@
+%
+% BioLogic:  WEB/ILP Server for Bioinformatics
+% Copyright (C) 2005,2011  Peter B. Reintjes
+%
+%    This program is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    This program is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+%:- [release]. % Uncomment and call release/0 to create distribution
+%:- [debug].
+:- dynamic(debug/0).
+message(F,L) :- debug -> format(user_error, F, L) ; true.
+
+%:- use_module(library('http/httpd')).        
+:- use_module(library(http/thread_httpd)).   % Server loop
+:- use_module(library(http/http_dispatch)).  % dispatch table
+:- use_module(library(http/http_header)).    % Terms -> HTML conversion
+:- use_module(library(http/html_write)).     % Terms -> HTML conversion
+:- use_module(library(http/html_head)).      % html_requires//1
+%:- use_module(library(semweb/rdf_db)).
+
+
+:- ensure_loaded(webspec).           % HTTP Request handlers
+%:- use_module('database/pbio').      % ODBC DATABASE (postgres)
+%:- ensure_loaded('ilp/aleph/aleph'). % Aleph ILP Engine
+%:- ensure_loaded('ilp/golem/golem'). % Golem ILP Engine
+%:- ensure_loaded('ilp/foil/foil').   % Foil ILP Engine
+%:- ensure_loaded('ilp/foidl/foidl'). % Foidl ILP Engine
+
+:- ensure_loaded(a). % PACE Apparatus GUI
+
+%run_ilp(foidl) :- cd('ilp/foidl'), top(past).
+%run_ilp(aleph) :- format(user_error, 'No induction problem for aleph~n',[]).
+
+biologic_user(peter).
+
+biologic_directory('C:/cygwin/home/peter/Prolog/Biologic/') :-
+    current_prolog_flag(windows,true),!.
+biologic_directory('/home/peter/Prolog/Biologic') :-
+    current_prolog_flag(unix,true).
+
+repeat(_).
+repeat(N) :- N > 0, NN is N -1, repeat(NN). 
+
+% SIGNAL HANDLING
+% :- on_signal(int, _, cint).
+%
+% cint(_Signal) :-
+%	writeln('Caught a cntl-C'),
+%	thread_send_message(main, cinter).
+
+running :- catch(thread_httpd:http_workers(8080,N),_,fail), N>0.
+
+start :- ( running -> true
+	   ; process_files('open/*',        [] ),
+	     process_files('htdocs/*.html', [] ),
+	     process_files('open/css/*',    [] ),
+	     process_files('open/js/*',     [] ),
+	     process_files('open/images/*', [] ),
+	     process_files('secure/*', [authentication(basic(pws,'Secure Page'))]),
+	     http_server( http_dispatch, [ port(8080) ] )
+         ).
+
+stop :-	catch(http_stop_server(8080,[]),_,true).
+
+reload :-
+    stop,
+    reconsult(httpd),
+    start.
+
+% Given a Chdir path of depth N,
+% create a ladder back to original location
+
+return_path(Path,Return) :-
+    atom_chars(Path,PathChs),
+    findall('/..', member('/',PathChs), Levels),
+    concat_atom(['..'|Levels], Return).
+
+newpipe(Name) :-
+	concat_atom(['mkfifo ', Name], MakePipe),
+	system(MakePipe).
+
+% Run async command with stream output
+run_external(Cmd, Stream) :-
+	newpipe('/tmp/bpipe'),
+	concat_atom([Cmd,' >/tmp/bpipe &'], Redirected),
+	system(Redirected),
+	open('/tmp/bpipe', read, Stream, []),
+	system('rm /tmp/bpipe').
+
+main :- start, go.
