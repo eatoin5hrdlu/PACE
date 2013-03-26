@@ -5,6 +5,7 @@
 
 :- dynamic turbidostat/6. % t(Name, ID, Port, PID, In, Out)
 :- dynamic turbidostats/1.
+:- dynamic tt_reading/4.
 :- dynamic measurement/3. % Name, {temperature,turbidity}, Value
 :- multifile measurement/3.
 :- use_module(library('R')).
@@ -66,7 +67,7 @@ ubuntu([monitor(dell),
 	pad_value(1,V,['  ',V,'  '],black),
 	pad_value(2,V,['  ',V,' '],black),
 	pad_value(3,V,[' ',V,' '],black),
-	pad_value(4,V,[V],black)]).
+	pad_value(4,V,[' ',V],black)]).
 
 
 toshiba([monitor(toshiba),
@@ -130,7 +131,7 @@ showr(Name) :-
 	( r_print( 'dev.off()' ) -> true ; true ),
 	( r_close -> true ; true ),
 	r_open,
-	concat_atom(['read.csv("',Name,'.rdata",header=TRUE,sep=",")'],Read),
+	concat_atom(['read.csv("',Name,'.tdata",header=TRUE,sep=",")'],Read),
 	catch( r_in(d <- Read), Except, (write('['), write(Except), writeln(']'),fail) ),
 	r_print('dev.new(width=6,height=8,xpos=40,ypos=40)'),
 	r_in(par(mfrow=c(2,1))),
@@ -177,8 +178,8 @@ id :-
            Cwd = 'C:\\cygwin\\home\\peter\\arduino\\examples\\01.Basics\\myio',
 	   DeviceList = [4,5,6,7,8,9,10,11,12,13,14,15,16] % number is N-1 for comN:
         ;  Python = '/usr/bin/python',
-           Filter = '/home/peter/PACE/myio/pyship.py',
-           Cwd = '/home/peter/PACE/myio',
+           Filter = '/home/peter/src/PACE/pyship.py',
+           Cwd = '/home/peter/src/PACE',
 	   DeviceList = [0,1,2,3,4] % /dev/ttyUSBN
         ),
         member(Dev, DeviceList),
@@ -236,6 +237,13 @@ shut :-  writeln('               Shutting Turbidostats down'),
 	 fail.
 shut :-  writeln('               Turbidostats shutdown').
 
+delayed_send(W) :-
+	new(Msg1, message(@prolog, record_temp_turb)),
+        new(@dtimer, timer(2.0, Msg1)),
+	send(W, attribute, attribute(timer, @dtimer)),
+	send(@dtimer, start),
+	writeln(created_started_timer).
+
 
 :- pce_begin_class(name_asker, dialog, "Quad-PACE Apparatus Control Panel").
 
@@ -259,7 +267,7 @@ initialise(W, Label:[name]) :->
         send(W, append(button(cold),right)),
         send(W, append(button(warm),right)),
         send(W, append(button(hot),right)),
-        send(W, append(button(clear),right)),
+        send(W, append(button(ds),right)),
         send(W, append(button(good),right)),
         send(W, append(button(browse),right)),
         send(W, append(button(update),right)),
@@ -297,7 +305,7 @@ initialise(W, Label:[name]) :->
         paceLocation(Location),
 
 % Temporary: Set Darwin active when entering 'Plot' button
-% to ensure that we use darwin.rdata file every time.
+% to ensure that we read darwin.tdata file every time.
 %
         new(Code1, message(@tmenu, selection, darwin)),
         send(@plotbut, recogniser, handler(area_enter, Code1)),
@@ -322,13 +330,6 @@ auto(_) :->
         "Connect to Turbidostats and Collector"::
         auto.
 
-delayed_send(W) :-
-	new(Msg1, and(send(@darwin_temperature, value,30),
-                      send(@darwin_turbidity, value,40))),
-        new(T, timer(4.0, Msg1)),
-	send(W, attribute, attribute(timer, T)),
-	send(T, start),
-	writeln(started_timer).
 
 quit(W) :->
         "User pressed the Quit button"::
@@ -347,9 +348,9 @@ matrix(_) :->    plot_matrix.
 cold(_)   :-> new_value( darwin, temperature, 20).
 warm(_)   :-> new_value( darwin, temperature, 37).
 hot(_)    :-> new_value( darwin, temperature, 42).
-clear(_)  :-> new_value( darwin, turbidity,  200).
-good(_)   :-> new_value( darwin, turbidity,  500),
-              add_to_editor(buffon, "good").
+ds(W)     :-> delayed_send(W).
+good(_)   :-> (create_files;true),
+              add_to_editor(buffon, "wrote data").
 browse(_) :-> manpce.
 
 text_fred :- new_value( darwin, turbidity,  800),
@@ -367,371 +368,21 @@ update(_W) :->
         recolor,
         update_values.
 
-tt(_) :->
-        get(@tmenu, selection, Sel),
-        writeln(Sel),
-        turbidostat(Sel, _ID, _Port, _PID, _In, _Out),
-        send_receieve(Sel,[tt],[OneLine]),
+% Return pdate display and return latest Temp/Turbidity
+% tt(?, -, -)
+tt(Device, Temp, Turb) :-
+        online(Device),
+        send_receive(Device,[tt],[OneLine]),
         atom_codes(OneLine, Codes),
+        % Parse Temperature and Turbidity
         parseatom(TempCs, Codes, NextCodes),
-        atom_codes(TempAtom, TempCs),
-        send(@tm, value, TempAtom),
+        number_codes(Temp, TempCs),
         parseatom(TurbCs, NextCodes, []),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        atom_codes(TempAtom, TurbCs),
-        send(@tb, value, _Turb).
-
-parseatom([])    --> [' '], !.
-parseatom([H|T]) --> [H], parseatom(T).
+        number_codes(Turb, TurbCs).
+
+parseatom([])    --> [32], !.
+parseatom([H|T]) --> [H],  !, parseatom(T).
+parseatom([])    --> [].
 
 list_to_stream([H,I|T], Stream) :-
        format(Stream, '~w ', [H]),
@@ -870,6 +521,14 @@ padded_value(Value, Padded) :-
         pad_value(Length, Value, Atoms, _Color),
         concat_atom(Atoms, Padded).
 
+record_temp_turb :-
+        tt(Device, Temp, Turb),  % succeeds for each online device
+        new_value(Device, temperature, Temp),
+        new_value(Device, turbidity,   Turb),
+        get_time(TimeStamp),
+        assert(tt_reading(darwin, TimeStamp, Temp, Turb)),
+        fail. % Repeat for all online devices
+
 :- pce_end_class.
 
 g :- notrace, nodebug, reconsult(a), go.
@@ -988,3 +647,27 @@ add_to_editor(Name, Codes) :-
 
 %        get(@E?text_buffer?contents, sub, 0, @E?text_buffer?size, String)
 %        send(String,append,string(Codes)).
+
+% styrofoam:     906 mg/cm3
+% aerographene: .16 mg/cm3
+create_files :-
+        online(Name),
+        findall(ttt(Ts,Tm,Tb),tt_reading(Name,Ts,Tm,Tb),List),
+        write_sequence(Name, List),
+        fail.
+
+
+write_sequence(Name, [ttt(Time,Tm,Tb)|Rest]) :-
+	Offset is integer(Time)-1,
+	concat_atom([Name,'.tdata'],Filename),
+	tell(Filename),
+        writeln('Time,Temperature,Turbidity'),
+        write_sequence([ttt(Time,Tm,Tb)|Rest],1, Offset),
+	told.
+
+write_sequence([],_,_).
+write_sequence([ttt(Time,Tm,Tb)|Rest],Sequence,Offset) :-
+	RelTime is integer(Time)-Offset,
+	format('~d,~d,~d,~d~n',[Sequence,RelTime,Tm,Tb]),
+	NextSequence is Sequence + 1,
+	write_sequence(Rest, NextSequence, Offset).
