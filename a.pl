@@ -128,8 +128,7 @@ threshold(turbidity,  700, 1024, brown ).
 %
 
 showr(Name) :-
-	( r_print( 'dev.off()' ) -> true ; true ),
-	( r_close -> true ; true ),
+	( current_r_session(R) -> r_close(R) ; true ),
 	r_open,
 	concat_atom(['read.csv("',Name,'.tdata",header=TRUE,sep=",")'],Read),
 	catch( r_in(d <- Read), Except, (write('['), write(Except), writeln(']'),fail) ),
@@ -237,12 +236,19 @@ shut :-  writeln('               Shutting Turbidostats down'),
 	 fail.
 shut :-  writeln('               Turbidostats shutdown').
 
-delayed_send(W) :-
+delayed_startup :-
+        auto, % Bring turbidostats online
 	new(Msg1, message(@prolog, record_temp_turb)),
         new(@dtimer, timer(2.0, Msg1)),
-	send(W, attribute, attribute(timer, @dtimer)),
+%	send(W, attribute, attribute(timer, @dtimer)),
 	send(@dtimer, start),
-	writeln(created_started_timer).
+	writeln(delayed_initialization_completed).
+
+delayed_execution(Time, Goal) :-
+	new(Msg, message(@prolog, (Goal,send(@ex1,stop),free(@ex1)))),
+        new(@ex1, timer(Time, Msg)),
+	send(@ex1, start),
+	writeln(created_delayed_execution(Goal)).
 
 
 :- pce_begin_class(name_asker, dialog, "Quad-PACE Apparatus Control Panel").
@@ -348,7 +354,7 @@ matrix(_) :->    plot_matrix.
 cold(_)   :-> new_value( darwin, temperature, 20).
 warm(_)   :-> new_value( darwin, temperature, 37).
 hot(_)    :-> new_value( darwin, temperature, 42).
-ds(W)     :-> delayed_send(W).
+ds(_)     :-> delayed_startup.
 good(_)   :-> (create_files;true),
               add_to_editor(buffon, "wrote data").
 browse(_) :-> manpce.

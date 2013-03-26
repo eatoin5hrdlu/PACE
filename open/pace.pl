@@ -1,5 +1,4 @@
 :- use_module(library(charsio)).
-
 pace(_Request) :-
         Title = 'PACE Control Panel',
         turbidostats(List),
@@ -16,6 +15,7 @@ pace(_Request) :-
 	        member(Name,List), Edits),
 	reply_html_page( biologic,
 	        [ title(Title),
+		  meta(['http-equiv'(refresh),content(5)],[]),
                   script([ language(javascript) ],[]),
 		  Style ],
 		  body(id(biologic),
