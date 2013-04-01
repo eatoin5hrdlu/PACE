@@ -98,3 +98,4 @@ run_external(Cmd, Stream) :-
 	system('rm /tmp/bpipe').
 
 main :- start, go.
+
