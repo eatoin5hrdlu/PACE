@@ -6,7 +6,7 @@ PACE is described by David R. Liu, Kevin M. Esvelt and Jacob C. Carlson
 in    http://www.ncbi.nlm.nih.gov/pubmed/21478873
 
 This project contains Arduino code for Turbidostats and the sample collector,
-s well as the server software to provide an on-screen interface to Turbidostat
+as well as the server software to provide an on-screen interface to Turbidostat
 control and Web interface.
 
 
