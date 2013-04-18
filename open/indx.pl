@@ -2,7 +2,7 @@
 % INDEX.HTML
 %
 
-index(_Request) :-
+indx(_Request) :-
 	message('handling index~n',[]),
 	reply_html_page(
 			title(foo),

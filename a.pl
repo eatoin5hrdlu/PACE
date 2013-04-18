@@ -546,7 +546,7 @@ g :- notrace, nodebug, reconsult(a), go.
 go :-
   freeall,
   new(@GUI, name_asker('TurbidoStatus')),
-  send(@GUI?frame, icon, bitmap('C:/cygwin/home/peter/bin/evo.bmp')),
+  send(@GUI?frame, icon, bitmap('./open/images/evo.xpm')),
   get(@GUI, prompt, Name),
   (Name == quit -> halt; true).
 
