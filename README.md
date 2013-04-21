@@ -17,5 +17,5 @@ Running PACE on a Linux or Windows machine provides an interface
 for up to 16 turbidostats: USB connected Arduinos running pace.ino
 and one sample collector: USB connected Arduino running collector.ino.
 It also contains a web server to provide essentially the same
-interface via the URL:  &gt;machine-name&lt;:8080/pace.pl
+interface via the URL:  &lt;machine-name&gt;:8080/pace.pl
 
