@@ -27,25 +27,27 @@ Prerequisite Software
 Getting Started
 ====
 Clone the repo:
+
     git clone https://github.com/eatoin5hrdlu/PACE.git
 
 Run the app:
+
     cd app
     python levelapp.py
 
 Controls
 ====
-*z  - read one frame and find levels and display
-*r - read, find levels and display for 20 seconds.
-*0<nl>   Select the turbidostat as current vessel
-*{1,2,3,4 for lagoons)
-*<arrow keys> to move up/down/left/right, or:
-*h  - move to the left
-*j  - move down
-*k  - move up
-*l  - move right
-*t -make region taller
-*s - make region shorter
-*f - make region fatter
-*d - diminish (make region thinner)
-*x - exits the program
+* z  - read one frame and find levels and display
+* r - read, find levels and display for 20 seconds.
+* 0<nl>   Select the turbidostat as current vessel
+* {1,2,3,4 for lagoons)
+* <arrow keys> to move up/down/left/right, or:
+* h  - move to the left
+* j  - move down
+* k  - move up
+* l  - move right
+* t -make region taller
+* s - make region shorter
+* f - make region fatter
+* d - diminish (make region thinner)
+* x - exits the program
