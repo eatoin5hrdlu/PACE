@@ -35,6 +35,9 @@ Run the app:
     cd app
     python levelapp.py
 
+Using the controls, line up the lagoons and turbidostat in the camera frame
+with the corresponding lines being displayed
+
 Controls
 ====
 * z  - read one frame and find levels and display
