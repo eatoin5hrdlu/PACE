@@ -2,6 +2,10 @@
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
+:- use_module(library(charsio)).
+:- use_module(library(helpidx)).
+:- use_module(library(lists)).
+:- use_module(library(ctypes)).
 
 :- dynamic turbidostat/6. % t(Name, ID, Port, PID, In, Out)
 :- dynamic turbidostats/1.
@@ -78,12 +82,12 @@ toshiba([monitor(toshiba),
 	 pacefont(medium,font(courier, bold, 42)),
 	 pacefont(large, font(courier, bold, 68)),
 	 pacefont(huge,  font(courier, bold, 98)),
-	 pad_value(0,_,['  0  ']),
-	 (pad_value(1,0,['  0  ']) :- !),
-	 pad_value(1,V,['   ',V,'  ']),
-	 pad_value(2,V,['  ',V,'  ']),
-	 pad_value(3,V,[' ',V,' ']),
-	 pad_value(4,V,[V])]).
+	 pad_value(0,_,['  0  '],darkgrey_),
+	 (pad_value(1,0,['  0  '],darkgrey) :- !),
+	 pad_value(1,V,['   ',V,'  '],black),
+	 pad_value(2,V,['  ',V,'  '],black),
+	 pad_value(3,V,[' ',V,' '],black),
+	 pad_value(4,V,[V],black)]).
 
 :- ( current_prolog_flag(windows,true) -> toshiba(A)
    ; current_prolog_flag(arch,armv6l) -> lcd(A) % hdmi(A)?
@@ -92,7 +96,7 @@ toshiba([monitor(toshiba),
    maplist(assert,A).
 
 turbidostats([aristotle, buffon, cuvier, darwin
-%             , erasmus,  ford,  gregor, huxley
+%            , erasmus,  ford,  gregor, huxley
              ]).
 
 
@@ -586,7 +590,9 @@ auto :-	shut,
         restore([ aristotle, buffon, cuvier, darwin]),
 	writeln('Identifying Turbidostats...'),
 	id,
+	writeln('update_values'),
 	update_values,
+	writeln('recolor'),
 	recolor.
 
 plot_matrix :-
@@ -616,7 +622,10 @@ color(Name, Type, Value, Colour) :-
             threshold(Type, Low, High, Colour),
             Low < Value,
             Value =< High
-        ; Colour = colour(darkgrey)
+        ; Colour = colour(darkgrey),
+          turbidostats(List),
+          member(Name, List),
+          member(Type, ['temperature','turbidity'])
         ).
 
 freevalues :-

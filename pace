@@ -14,6 +14,24 @@
 %
 %    You should have received a copy of the GNU General Public License
 %    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+%
+% CREATE STAND-ALONE EXECUTABLE 'pace.exe':
+%
+% $ swipl-win
+%  << then, at the Prolog prompt >>
+% ?- [pace], make.
+%
+make :-
+	qsave_program('pace.exe', [toplevel(main),stand_alone(true)]).
+
+%
+% The web-page/CGI Prolog files in the open/ and secure/ directories
+% cannot include libraries that have not been included by these
+% main files before building the stand-alone executable. So any
+% :- use_module(library(XXX)) that appears in one of these files
+% must also appear somewhere in either 'pace' or 'a.pl'.
+%
+%
 
 %:- [release]. % Uncomment and call release/0 to create distribution
 %:- [debug].
@@ -27,6 +45,13 @@ message(F,L) :- debug -> format(user_error, F, L) ; true.
 :- use_module(library(http/html_write)).     % Terms -> HTML conversion
 :- use_module(library(http/html_head)).      % html_requires//1
 %:- use_module(library(semweb/rdf_db)).
+
+% Used by CGI Prolog files in open/secure htdocs directories
+% Because we can't load libraries at runtime in qsaved .exe
+
+:- use_module(library(charsio)).
+:- use_module(library(helpidx)).
+:- use_module(library(process)).
 
 
 :- ensure_loaded(webspec).           % HTTP Request handlers
