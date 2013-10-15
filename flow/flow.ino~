@@ -1,0 +1,507 @@
+/*
+ * Flow controller normal operation:
+ *
+ * Turn pumps on/off for a few seconds every minute to approximate
+ * optimal flow rate (2.5 vol/hour, vol = 200mL)
+ *
+ * Commands:
+ *  {id}{io}N : Increase/decrease input/output flow for lagoon N
+ *      Add or subtract an increment to on time of the specified pump.
+ *
+ *  ci : Calibrate In-flow, increase working level:
+ *      Disable all out-flow pumps
+ *      Run three cycles of all Input pumps (off time equal to on time)
+ *      Sleep for 10 seconds
+ *      Re-enable normal pump cycle.
+ *
+ *  co : Calibrate Out-flow, decrease working level:
+ *      Disable all in-flow pumps
+ *      Run three cycles of all Output pumps (off time equal to on time)
+ *      Sleep for 10 seconds
+ *      Re-enable normal pump cycle.
+ *
+ */
+
+//#define DEBUG 1
+#define STANDALONE 1
+
+/* CONSTANTS AND GLOBAL VARIABLES */
+
+#define PUMP_CYCLE	30000 // mSec between pumping cycles
+#define PUMP_ORIGIN	2     // First pin for eight lagoon pumps
+#define LAST_PUMP	9
+#define TURBID_LED	10    // Turbidity LED is a PWM pin
+#define HEATER		11    // Power for heater
+#define VALVE		12
+#define LED		13
+
+#define TURBIDITY	0    // Analog pins
+#define TEMPERATURE	1
+
+#define IN		0     // Pin # offset for input
+#define OUT		4     // and output pumps
+
+int interval;   // Variable to keep track of the time
+int reading[10];
+
+// Store the on-time, for each of the four input and four output pumps
+// These values are just initial suggestions, the actual values will
+// be read from EEPROM once they have been saved there
+
+int   rate[8]	=	{	3000, 3000, 3000, 3000,
+				3000, 3000, 3000, 3000 };
+
+byte temp;      // Thermostat setting
+byte cal;	// Calibration constant (LED current)
+
+/* ROLLING AVERAGE OF OPTICAL DENSITY READINGS */
+
+int  ai;	
+int rollval[10]	= {	200, 200, 200, 200, 200,
+			200, 200, 200, 200, 200, };
+
+int add2rollingavg(int n)
+{
+int sum = 0;
+	rollval[ai] = n;
+	ai = (ai + 1)%10;
+	for (int i=0;i<10;i++) sum += rollval[i];
+	return sum/10;
+}
+	
+void showpumps(void)
+{
+	for (int i=0; i<8; i++)
+	{
+		Serial.print(digitalRead(PUMP_ORIGIN+i));
+		Serial.print("   ");
+	}
+	Serial.println("");
+}
+
+/* EEPROM SAVE AND RESTORE OF ID AND CALIBRATION CONSTANTS */
+
+#ifdef STANDALONE
+#include "EEPROM.h"
+#define SAVE	1
+#define RESTORE	0
+int RomAddress  = 0;
+byte id = 'z'; // Zeno = unassigned, by default
+
+// 'RomAddress' global will be bumped by successive
+// calls to moveData( SAVE|RESTORE, size, ptr)
+
+void moveData(int op, int size, byte *loc)
+{
+	for(int i=size;i>0;i--)
+		if (op == SAVE)
+			EEPROM.write(RomAddress++,*loc++);
+		else
+			*loc++ = EEPROM.read(RomAddress++);
+}
+
+void saveRestore(int op)
+{
+	RomAddress = 0;
+	moveData(op, 1, &id);
+	for(int i=0;i<8;i++) moveData(op, sizeof(int), (byte *)(&rate[i])  );
+	moveData(op, 1, &cal);
+	moveData(op, 1, &temp);
+}
+#endif
+
+int cycle = IN;      // State variable for which cycle we are in
+int cntr = 1;        // Loop iteration counter
+long unsigned int start_time = 0;  // The moment (in ms) that pumps were last turned on
+
+void printHelp(void)
+{
+	Serial.print("\n\n");
+	Serial.println("Xz : Set ID to X");
+	Serial.println("iiN: Increase input flow for Lagoon N");
+	Serial.println("ioN: Increase output flow for Lagoon N");
+	Serial.println("diN: Decrease input flow for Lagoon N");
+	Serial.println("doN: Decrease output flow for Lagoon N");
+	Serial.println("ci : Measure in-flow rate");
+	Serial.println("co : Measure out-flow rate");
+	Serial.println("wi : calibrate at 200 (e.g. clear water)");
+	Serial.println("li : calibrate at 700");
+}
+
+boolean flow_command(char c1, char c2, int lagoon)
+{
+	int direction;
+	switch(c1) // Single letter commands first
+	{
+		case 'a':
+			Serial.println("a");
+			return true;
+			break;
+		default : 
+			break;
+	}
+	switch(c2) 
+	{
+		case 'i': direction = IN;   break;
+		case 'o': direction = OUT;  break;
+		case 'z': id = c1; saveRestore(SAVE); return true;
+		default:  id = c2;
+	}
+	switch(c1)
+	{
+		case 'b':	Serial.println(cal);
+				break;
+
+		case 'c':	calibrate(direction);
+				break;
+
+		case 'd':	rate[direction+(lagoon-1)] -= 1000;
+				saveRestore(SAVE);
+				break;
+		case 'i':	
+				rate[direction+(lagoon-1)] += 1000;
+				saveRestore(SAVE);
+				break;
+		case 'l':
+				calibrateLED(700.0);
+				analogWrite(TURBID_LED, cal);
+				break;
+		case 'o':
+				show_od();
+				break;
+		case 'w':
+				calibrateLED(200.0);
+				analogWrite(TURBID_LED, cal);
+				break;
+		case 'z':
+				Serial.write(id);
+				Serial.println();
+				break;
+
+		default:	return false;
+	}
+	return true;
+}
+
+bool alldata = false;  // Dump entire array, or just non-zero data
+
+void respondToRequest(void)
+{
+	String is = "";
+	while (Serial.available() > 0)  // Read a line of input
+	{
+		int c  = Serial.read();
+		if ( c < 32 ) break;
+		is += (char)c;
+		if (Serial.available() == 0) // It is possible we're too fast
+			delay(100);
+	}
+	if ( is.length() > 0 )  {   // process the command
+		int value = 0;
+		if (is.length() > 2)
+			value = atoi(&is[2]);
+		if (!flow_command(is[0], is[1], value))
+			Serial.println("bad flow command [" + is + "]");
+	}
+}
+
+/*
+ * average() throws out two extreme values and averages the rest
+ */
+
+float average(int *arr, int size)
+{
+	float avg = 0;
+	int mx = 0;
+        int mn = 2000;
+	for (int i=0; i<size; i++) 
+	{
+		avg += arr[i];
+		if (arr[i] < mn) mn = arr[i];
+		if (arr[i] > mx) mx = arr[i];
+	}
+	return ( ( avg - (mn+mx) )/(size-2));
+}
+
+float stdev(int *arr, int size, float avg)
+{
+	float sumsq = 0;
+	int mx = 0;
+        int mn = 2000;
+	for (int i=0; i<size; i++)
+	{
+		sumsq += (avg - arr[i])*(avg - arr[i]);
+		if (arr[i] < mn) mn = arr[i];
+		if (arr[i] > mx) mx = arr[i];
+	}
+	sumsq = sumsq - (avg - mn)*(avg - mn);
+	sumsq = sumsq - (avg - mx)*(avg - mx);
+	return sqrt(sumsq/(size-2));
+}
+
+/*
+ * Return average of 10 readings of analog input
+ */
+
+float get_average(int Ain)
+{
+	for (int j=0; j<10; j++)
+		{
+			reading[j] = analogRead(Ain);
+		}
+	return average(reading, 10);
+}
+
+
+/* PUMP CONTROL */
+
+// Give check_pumps() the time when the pumps were last started
+// It will return the same value until the pumps are all shut off,
+// when it will return 0.
+
+int check_pumps(int started)
+{
+	int elapsed = millis() - started;
+	for (int i = 0; i < 8; i++)
+	{
+		if (elapsed > rate[i] && digitalRead(PUMP_ORIGIN+i) == 1)
+		{
+			digitalWrite(PUMP_ORIGIN+i,0);
+			int tm_err = (elapsed - rate[i])-1;
+			if (tm_err > 2) {
+#ifdef DEBUG
+				Serial.print(i);
+				Serial.print(" pump off error: ");
+				Serial.println((elapsed - rate[i])-1);
+#endif
+			}
+		}
+	}
+	if (pumps_on()) return started;
+#ifdef DEBUG
+	else		Serial.println("no pumps on");
+#endif
+	return 0;
+}
+
+boolean pumps_on(void)     /* Are any pumps on? */
+{
+	for (int i = 0; i < 8; i++)
+		if ( digitalRead( PUMP_ORIGIN + i ) == 1)
+			return true;
+	return false;
+}
+
+int start_pumps(int direction)
+{
+#ifdef DEBUG
+	if (pumps_on()) Serial.println("Pumps were already on!");
+#endif
+	int start = PUMP_ORIGIN + direction;
+	int stop = start + 4;
+	for (int i = start; i < stop; i++) digitalWrite(i,1);
+	return millis();
+}
+	
+
+void calibrate(int direction)
+{
+	int off_pumps;
+	if (direction == IN)	off_pumps = OUT;
+	else			off_pumps = IN;
+	for(int i=0; i<4; i++ )
+		digitalWrite(PUMP_ORIGIN+off_pumps+i,0);
+
+	for(int t=0; t<3; t++)          // Three cycles
+	{
+		for(int i=0; i<4; i++ ) // For each pump
+		{
+			digitalWrite(PUMP_ORIGIN+direction+i,1);
+#ifdef DEBUG
+			Serial.print("Pump ");
+			Serial.print(direction+i+1);
+			Serial.println(" on");
+#endif
+			delay(rate[direction+i]);
+			digitalWrite(PUMP_ORIGIN+direction+i,0);
+#ifdef DEBUG
+			Serial.print("Pump ");
+			Serial.print(direction+i+1);
+			Serial.println(" off");
+#endif
+			delay(1000);
+		}
+	}
+	interval = 1 + (millis()/PUMP_CYCLE); // Restart pumping after delay
+}
+
+
+
+void flow_setup()
+{
+	pinMode(HEATER, OUTPUT); // up to 7KW heater
+	pinMode(VALVE, OUTPUT);	 // Bacterial Nutrient supply valve
+	pinMode(LED, OUTPUT);	 // Arduino Indicator light
+	interval = millis()/PUMP_CYCLE; // Intervals since startup (zero?)
+	for (int i=0;i<8;i++) {
+		pinMode(PUMP_ORIGIN+i, OUTPUT);
+		digitalWrite(PUMP_ORIGIN+i, 0);
+	}
+#ifdef DEBUG
+	Serial.print("Pumps initially set to: ");
+	showpumps();
+	Serial.print("On-times initially set to: ");
+	for(int i=0;i<8;i++) { Serial.print(rate[i]);Serial.print("   "); }
+	Serial.println("");
+#endif
+}
+
+
+void check_flow()
+{
+#ifdef DEBUG
+	if (cntr%(PUMP_CYCLE/30)==0)	showpumps();
+#endif
+	// Don't bother to check pumps if start_time is zero
+	// (e.g. Last we checked, all pumps were off)
+
+	if (start_time > 0)
+		start_time = check_pumps(start_time);
+	int current = millis() / PUMP_CYCLE;
+
+	if ( current > interval )  // Time for a pumping cycle
+	{
+#ifdef DEBUG
+		Serial.println("pump cycle");
+#endif
+		interval = current;
+		start_time = start_pumps(cycle);
+		if (cycle == IN) cycle = OUT;
+		else             cycle = IN;
+#ifdef DEBUG
+		showpumps();
+#endif
+	}
+	cntr++;
+}
+
+/* TEMPERATURE CONTROL */
+
+void check_temp()
+{
+	int t = get_average(TEMPERATURE);
+	if ( t < temp )
+		digitalWrite(HEATER,1);
+	else
+		digitalWrite(HEATER,0);
+}
+
+/* OPTICS FOR TURBIDITY MEASUREMENT */
+
+void turbid_setup()
+{
+	ai = 0; // Initialize index for rolling average array
+	analogWrite(TURBID_LED, cal);
+	delay(400);
+	for(int i=0; i < 10; i++ )
+	{
+		delay(100);
+		add2rollingavg(analogRead(TURBIDITY));
+	}
+}
+
+int LEDcalibration(float nominal)
+{
+int	ledout = 128;
+int	change = ledout/2;
+	analogWrite(TURBID_LED, ledout);
+	delay(200);
+float	avg = get_average(TURBIDITY);
+int 	error = (int) (avg - nominal);
+
+	while ( abs(error) > 2)
+	{
+		if (error < 0) ledout = ledout - change;
+		else           ledout = ledout + change;
+		change = change/2 + 1;
+		analogWrite(TURBID_LED, ledout);
+		delay(200);
+		avg = get_average(TURBIDITY);
+		error = (int) (avg - nominal);
+	}
+	return ledout;
+}
+
+void calibrateLED(float level)
+{
+int tmp;
+int avg = 0;
+
+#ifdef DEBUG
+	Serial.println("wait 5 seconds");
+	delay(5000);
+#endif
+	for(int i=0; i<10; i++)
+	{
+		delay(300);
+		tmp = LEDcalibration(level);
+#ifdef DEBUG
+		Serial.println(tmp);
+#endif
+		avg += tmp;
+	}
+	avg = (int) ((float)avg) / 10.0;
+#ifdef DEBUG
+	Serial.print(avg);
+	Serial.print("  /10 ->  ");
+	Serial.println(avg);
+#endif
+	cal = (byte) avg;
+	saveRestore(SAVE);
+}
+
+
+void show_od()
+{
+	int avg = analogRead(TURBIDITY);
+	Serial.println(add2rollingavg(avg));
+}
+
+
+#ifdef STANDALONE
+/*
+ * setup()	1) Initializes serial link
+ *		2) Restores settings from EEPROM
+ *		2) Calls flow_setup (pumps)
+ *		3) Calls turbid_setup (LED/Optics)
+ */
+
+void setup()
+{
+	Serial.begin(9600);	// 9600 baud, 8-bits, no parity, one stop bit
+	if (EEPROM.read(0)==0)	// First time
+	{
+		Serial.println("first time");
+		id = 'a';	// Default ID 'Aristotle'
+		cal = 141;	// Default LED current/light level
+		temp = 100;	// Temperature set point
+		saveRestore(SAVE);
+	}
+	else
+		saveRestore(RESTORE);
+
+	flow_setup();
+
+	turbid_setup();
+}
+
+
+void loop() 
+{
+	delay(2);		// Delay between reads for stability
+	respondToRequest();	// Handle query from user/computer
+	check_flow();		// Check and update pumps
+	check_temp();		// Check and update heater
+}
+#endif
+
