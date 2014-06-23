@@ -10,7 +10,7 @@ as well as the server software to provide an on-screen interface to Turbidostat
 and Sample Collector control and Web interface.
 
 SWI-Prolog based web server, GUI, and Turbidostat control software
-is written mostly in Prolog with some Python (e.g. pySerial, for a 
+is written mostly in Prolog/Xpce with some Python (e.g. pySerial, for a 
 portable serial interface to Arduino) and HTML.
 
 Running PACE on a Linux or Windows machine provides an interface
@@ -22,7 +22,8 @@ interface via the URL:  &lt;machine-name&gt;:8080/pace.pl
 Prerequisite Software
 ====
 - Python2.7
-- OpenCV (python)
+- OpenCV (plus: "apt-get install python-opencv")
+- SWI-Prolog with Xpce
 
 Getting Started
 ====
