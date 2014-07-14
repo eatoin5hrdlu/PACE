@@ -1,0 +1,94 @@
+#!/Python27/python
+import sys, os, serial
+import time
+
+import observe
+# observe.video(False)  # Disable display mode before initializing
+observe.initialize( 'saved', 0 )
+#print "initialized"
+ser = None
+
+jar = 'Turbidostat'
+
+vessel = {'0' : 'Turbidostat',
+	  '1' : 'Lagoon    1',
+	  '2' :	'Lagoon    2',
+	  '3' :	'Lagoon    3',
+	  '4' : 'Lagoon    4' }
+
+if (len(sys.argv)>1 and sys.argv[1] == 'arduino') :
+	if (os.name == 'nt') :
+		port = int(sys.stdin.readline())
+	else :
+		port = ("/dev/ttyUSB" + sys.stdin.readline())[:-1]
+
+	try :
+		ser = serial.Serial(port, 9600, timeout=1)
+		print "c"
+	except serial.serialutil.SerialException:
+		print "No arduino microcontroller present"
+
+# print "starting the loop"
+time.sleep(0.5)
+print observe.getLevelString()
+while(1) :
+	u = sys.stdin.readline()
+        if (u[0] == 'x') :
+		if (ser) :
+			serin.close()
+		observe.bbye()
+		exit()
+        if (u[0] == 'z') :
+		res = observe.getLevelString()
+		if (res) :
+			print res
+	elif (u[0] == 'r') :
+		start = time.time()
+		while (time.time() < start + 10) :
+			res = observe.getLevelString()
+#			if (res) :
+#				print res
+	elif (u[0] == 'f') :
+		observe.dimension(jar,0,-10)
+		observe.getLevelString()
+	elif (u[0] == 'd') :
+		observe.dimension(jar,0,10)
+		observe.getLevelString()
+	elif (u[0] == 'h') :
+		observe.slide(jar,0,10)
+		observe.getLevelString()
+	elif (u[0] == 'j') :
+		observe.slide(jar,-10,0)
+		observe.getLevelString()
+	elif (u[0] == 'k') :
+		observe.slide(jar,10,0)
+		observe.getLevelString()
+	elif (u[0] == 'l') :
+		observe.slide(jar,0,-10)
+		observe.getLevelString()
+	elif (u[0] == 's') :
+		observe.dimension(jar,10,0)
+		observe.getLevelString()
+	elif (u[0] == 't') :
+		observe.dimension(jar,-10,0)
+		observe.getLevelString()
+	elif (u[0] == 'w') :
+		observe.savebottles('saved')
+	elif (u[0] == 'p') :
+		observe.saveView()
+	else :
+		jar = vessel.get(u[0],'Turbidostat')
+		if (jar == None) :
+			if (ser) :
+				ser.write(u)
+				ser.write("\n")
+				time.sleep(0.1)
+				line = ser.readline()
+				while(len(line) > 0) :
+					print(line[:-1])
+					time.sleep(0.02)
+					line = ser.readline()
+	        		print('end_of_data')
+
+        
+    
