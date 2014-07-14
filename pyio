@@ -1,0 +1,60 @@
+:- module(pyio, [send_receive/3, get_level/2]).
+% Python communicates with the Arduinos and OpenCV level detectors
+
+:- use_module(library(time)).
+:- use_module(library(process)).
+:- dynamic device_streams/3.
+:- dynamic level_streams/3.
+:- dynamic camera_streams/3.
+
+device(darwin,    3 ).
+
+python('C:/Python27/python.exe') :- current_prolog_flag(windows,true),!.
+python('/usr/bin/python').
+
+% connect(Device,In,Out) takes one second to complete the first time.
+
+connect(Name, In, Out) :- device_streams(Name,In,Out),!. % Connected
+connect(Name, In, Out) :-
+        python(Python),
+        process_create(Python, [ '-u', plsrc ],
+		[ stdin(pipe(In)), stdout(pipe(Out)), process(_PID)]),
+        set_stream(In, buffer(false)),
+	device(Name, Port),
+	format(In, '~d~n', [Port]), % Send Port ID to Python
+	getall(Out,[connected]),
+	assert(device_streams(Name,In,Out)).
+
+send_receive(Name, Command, Response) :-
+	connect(Name, In, Out),
+	list_out(Command, In),
+	getall(Out,Response),
+	(Command = x ->
+		retract(device_streams(Name,In,Out)),
+		close(In),
+		close(Out)
+	; true
+	).
+
+getall(Stream, Ls) :-
+	read(Stream, T),
+	(T = end_of_file -> Ls=[] ; Ls=[T|Ts],getall(Stream,Ts)).
+
+list_out([H,I|T], Stream) :-
+       format(Stream, '~w ', [H]),
+       list_out([I|T], Stream).
+list_out([H], Stream)     :-
+       format(Stream, '~w~n', [H]).
+
+
+get_level(Name, Levels) :-
+	( camera_streams(Name, In, Out) -> true
+	; 
+	python(Python),
+        process_create(Python, [ '-u', alone ],
+		[ stdin(pipe(In)), stdout(pipe(Out)), process(_PID)]),
+        set_stream(In, buffer(false)),
+	assert(camera_streams(Name, In, Out))
+	),
+	format(In, 'z~n', []),
+	read(Out,Levels).
