@@ -24,6 +24,7 @@ Prerequisite Software
 - Python2.7
 - OpenCV (plus: "apt-get install python-opencv")
 - SWI-Prolog with Xpce
+- Arduino IDE (Processing)
 
 Getting Started
 ====
