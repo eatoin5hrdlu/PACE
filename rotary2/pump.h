@@ -15,15 +15,21 @@ class PUMP
   #define VALVE_ACTIVATION_MS   5000  // One second
   #define MAX_PRIMING_TIME_MS  20000 // Twenty seconds 
 
-  PUMP(int,int,int);      // Configure pins for Pump, Valve Activate, and Hold
+  PUMP(char *,int,int,int);  // Name and configure pins for Pump, Activate, and Hold
 
   void setMode(int Mode); // Mode is one of {PRIME, FLOW, OFF }
   int  getMode();         //
   boolean check();        // Check and adjust valve power and return PRIMING state
   long int duration();    // Length of time pump has been in current state
   boolean priming();
+  void who();
 
   private:
+  static int g_start_time;
+  static int g_valve_state;
+  static int g_prime_time;
+
+    char myname[20];
     int currentMode;
     int pump, activate, hold;
     int valve_state;

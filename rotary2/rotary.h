@@ -31,14 +31,12 @@ class ROTARY
       pause[i] = NOMINAL_TIME;   // msec at each position
       holding[i] = HOLDING_TORQUE;
       passing[i] = NOMINAL_TORQUE;  // Lowest passing torque is 44?
-      pump[i] = 13;        // No pumping
+      pmp[i] = 13;        // No pumping
     }
-    Serial.print(" Created Rotary with "); Serial.print(size);
-    Serial.println(" positions");
   }
 
   void set(byte pos, byte pin, int ms)  {
-    pump[pos] = pin; pause[pos] = ms;
+    pmp[pos] = pin; pause[pos] = ms;
   }
     
   void reset(void)    {
@@ -83,8 +81,8 @@ class ROTARY
   }
 
   void pumpon(void)  {
-    if( pump[pos] )
-      digitalWrite(pump[pos],1);
+    if( pmp[pos] )
+      digitalWrite(pmp[pos],1);
   }
 
 
@@ -357,15 +355,15 @@ class ROTARY
     }
 
   void pumpoff(void) {
-    if( pump[pos] )
-      digitalWrite(pump[pos],0);
+    if( pmp[pos] )
+      digitalWrite(pmp[pos],0);
   }
   // Change time delay for a given position
   void adjust(int pos, int val)    { pause[pos] += val; }
 
   void openvalve(void) { set_torque(holding[pos]); }
 
-  byte *getPumps(void)    { return pump;     }
+  byte *getPumps(void)    { return pmp;     }
   int *getDelays(void)    { return pause;    }
 
  private:
@@ -373,7 +371,7 @@ class ROTARY
   int pos;             // Current integral position
   int state;           // Which state of the cycle (drift,hold,pass,etc.)
   int incr;            // (diminishing) increment for adjusting torque
-  byte pump[16];       // Array of pump ids for positions
+  byte pmp[16];       // Array of pump ids for positions
   int pause[16];       // Time in ms to stay at each position
   int add[16];         // Additional time lost to push_through()
   byte holding[16];     // PWM value for holding valve open

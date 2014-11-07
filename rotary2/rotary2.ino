@@ -23,9 +23,21 @@
  *
  */
 
+#include <Wire.h>
+#include <Adafruit_MLX90614.h>
+
+Adafruit_MLX90614 mlx;
+
+#include "pump.h"
+
+PUMP host    = PUMP("host", 22, 28, 23);
+PUMP inducer = PUMP("inducer", 24, 28, 25);
+PUMP waste   = PUMP("waste", 26, 28, 27);
+
+
 #include "rotary.h"   // Includes param.h (change constants there)
 
-ROTARY r(15);
+ROTARY r     = ROTARY(15);
 
 boolean auto_temp;  // Automatically control Heater
 boolean auto_flow;  // Maintain Flow Control
@@ -35,17 +47,18 @@ int interval;   // Variable to keep track of the time
 int reading[10];
 
 // Each position has a pump associated with it.
+int   rate[8]	=	{	3000, 3000, 3000, 3000,
+				3000, 3000, 3000, 3000 };
+
 
 // Store the on-time, for each of the four input and four
 // output pumps.  These values (in milliSeconds) will be
 // updated with optimal values that will be stored in EEPROM.
 
-int   rate[8]	=	{	3000, 3000, 3000, 3000,
-				3000, 3000, 3000, 3000 };
-
 int cycle = IN;      // State variable for which cycle (IN/OUT) we are in
 int cntr = 1;        // Loop iteration counter
 long unsigned int start_time = 0;  // When pumps were last turned on
+
 
 byte cal;	// Calibration constant (LED current)
 byte temp;      // Thermostat setting
@@ -54,15 +67,17 @@ byte temp;      // Thermostat setting
 
 int turbid  = 	500;    // Constant for optimal OD
 
-/* TEMPERATURE CONTROL */
-void temp_setup()
-{
-	auto_temp = true;
+void   temp_setup() {
+  mlx = Adafruit_MLX90614();
+  mlx.begin();
+  auto_temp = true;
 }
+
+int get_temp()  { return (int)(0.5 + mlx.readObjectTempC()); }
 
 void check_temp()
 {
-	int t = get_average(TEMPERATURE);
+	int t = get_temp();
 	if ( t < temp )
 		digitalWrite(HEATER,1);
 	else
@@ -590,8 +605,9 @@ void setup()
 {
 	Serial.begin(9600); // 9600 baud, 8-bits, no parity, one stop bit
 	pinMode(ROTATOR, OUTPUT);
-	r = ROTARY(15);
+//	r = ROTARY(15);
 	r.reset();
+	temp_setup();
 
 /*
 	if (EEPROM.read(0)==0)	// First time
@@ -604,37 +620,51 @@ void setup()
 	}
 	else
 		saveRestore(RESTORE);
-	temp_setup();
 	flow_setup();
 	turbid_setup();
 */
 }
 
-void minloop() {
+
+void loop() {
 int cp;
-	if (!r.check_drift(3)) {         // Drift
-		cp = r.position();       // Get current position
-		if (!r.check_dwell(cp))  // Hold current position
-			r.pass(cp);	 // Move to next position
+	delay(1000);
+	Serial.print(".");
+	if (host.getMode() == OFF) {
+		Serial.println("Setting host to priming mode");
+		host.setMode(PRIME);
 	}
+	if (inducer.getMode() == OFF) {
+		Serial.println("inducer to priming mode");
+		inducer.setMode(PRIME);
+	}
+	if (waste.getMode() == OFF) {
+		Serial.println("waste to priming mode");
+		waste.setMode(PRIME);
+	}
+	host.check();
+	inducer.check();
+	waste.check();
 
-	if (auto_flow)		// Check and update pumps
-		check_flow();
-
-	if (auto_temp)		// Check and update heater
-		check_temp();
-
-	if (auto_valve)		// Check and update valve
-		check_turbid();
-
+	if (host.getMode() == FLOW)
+	    Serial.println("host cell supply is now if FLOW mode");
+	if (inducer.getMode() == FLOW)
+	    Serial.println("Inducer supply is now if FLOW mode");
+	if (waste.getMode() == FLOW)
+	    Serial.println("Waste line is now if FLOW mode");
 }
-	
-	
-void loop() 
+
+
+
+void oldloop() 
 {
 int p;
 int cnt;
 	Serial.println("Loop");
+	while(1) {
+		Serial.println(get_temp());
+		delay(1000);
+	}
 	for (int i = 0; i< 19; i++)
 	{
 		r.check_drift(4);
