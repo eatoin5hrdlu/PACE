@@ -171,6 +171,7 @@ void printHelp(void)
 boolean flow_command(char c1, char c2, int value)
 {
 	int direction;
+	int devstate;
 	if (c2 == 0) // SINGLE LETTER COMMANDS
 	{
 		switch(c1)
@@ -215,6 +216,9 @@ boolean flow_command(char c1, char c2, int value)
 	{
 		case 'i': direction = IN;   break;
 		case 'o': direction = OUT;  break;
+		case '+': devstate = FLOW;  break;
+		case '-': devstate = OFF;   break;
+		case 'p': devstate = PRIME; break;
 		default:  id = c2;
 	}
 	switch(c1)
@@ -231,6 +235,9 @@ boolean flow_command(char c1, char c2, int value)
 				saveRestore(SAVE);
 				break;
 
+		case 'e': host.setMode(devstate);
+				break;
+
 		case 'f':	force_flow(direction);
 				break;
 
@@ -243,8 +250,12 @@ boolean flow_command(char c1, char c2, int value)
 			default: return false;
 			}
 			break;
-		case 'i':	id = c2;
+		case 'i':
+			if (c2 == '+' or c2 == '-' or c2 == 'p') inducer.setMode(devstate);
+			else {
+				id = c2;
 				saveRestore(SAVE);
+			}
 				break;
 		case 'm':
 			switch(c2)
@@ -279,6 +290,9 @@ boolean flow_command(char c1, char c2, int value)
 			case 'c': digitalWrite(VALVE,0); break;
 			default: return false;
 			}
+			break;
+		case 'w':
+			waste.setMode(devstate);
 			break;
 
 		default:
@@ -601,10 +615,13 @@ void steps(int p1, int s)
  */
 
 
+boolean once;
+
 void setup()
 {
 	Serial.begin(9600); // 9600 baud, 8-bits, no parity, one stop bit
 	pinMode(ROTATOR, OUTPUT);
+        for(int i=22;i<29;i++) { pinMode(i,OUTPUT); digitalWrite(i,0); }
 //	r = ROTARY(15);
 	r.reset();
 	temp_setup();
@@ -623,35 +640,33 @@ void setup()
 	flow_setup();
 	turbid_setup();
 */
+	once = true;
 }
-
 
 void loop() {
 int cp;
-	delay(1000);
-	Serial.print(".");
-	if (host.getMode() == OFF) {
-		Serial.println("Setting host to priming mode");
-		host.setMode(PRIME);
+boolean toggle = false;
+
+	delay(100);
+	respondToRequest();
+	if (once) {
+		if (host.getMode() == OFF)
+			host.setMode(PRIME);
+		if (inducer.getMode() == OFF)
+			inducer.setMode(PRIME);
+		if (waste.getMode() == OFF)
+			waste.setMode(PRIME);
+		once = false;
 	}
-	if (inducer.getMode() == OFF) {
-		Serial.println("inducer to priming mode");
-		inducer.setMode(PRIME);
-	}
-	if (waste.getMode() == OFF) {
-		Serial.println("waste to priming mode");
-		waste.setMode(PRIME);
-	}
+
 	host.check();
 	inducer.check();
 	waste.check();
 
-	if (host.getMode() == FLOW)
-	    Serial.println("host cell supply is now if FLOW mode");
-	if (inducer.getMode() == FLOW)
-	    Serial.println("Inducer supply is now if FLOW mode");
-	if (waste.getMode() == FLOW)
-	    Serial.println("Waste line is now if FLOW mode");
+	if (inducer.getMode() != OFF and inducer.duration() > 20000)
+		inducer.setMode(OFF);
+	if (inducer.getMode() == OFF and inducer.duration() > 20000)
+		inducer.setMode(FLOW);
 }
 
 

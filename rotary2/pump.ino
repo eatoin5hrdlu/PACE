@@ -11,21 +11,24 @@
 
 #include "pump.h"
 
-int PUMP::g_start_time;
 int PUMP::g_valve_state;
-int PUMP::g_prime_time;
+long int PUMP::g_start_time;
+long int PUMP::g_prime_time;
 
-PUMP::PUMP(char *name, int pump_pin, int avalve_pin, int hold_pin)
+PUMP::PUMP(char *name, int hold_pin, int avalve_pin, int pump_pin)
 {
     strncpy(myname,name,20);
     pump = pump_pin;
     activate = avalve_pin;
     hold = hold_pin;
     pinMode(pump, OUTPUT);
+    digitalWrite(pump,0);
     pinMode(activate, OUTPUT);
+    digitalWrite(activate,0);
     pinMode(hold, OUTPUT);
+    digitalWrite(hold,0);
     currentMode = OFF;
-    start_time = millis();
+    g_start_time = millis();
 }
  
 void PUMP::setMode(int Mode)
@@ -33,29 +36,32 @@ void PUMP::setMode(int Mode)
     if (Mode == currentMode)
 	return;
     if (Mode == PRIME) {
-	digitalWrite(pump, 1);      // Turn on the Pump
 	digitalWrite(hold, 0);      // Close the valve
+	digitalWrite(activate, 1);  // Activate High current/voltage
+	digitalWrite(pump, 1);      // Turn on the Pump
 	valve_state = OFF;          // Identify High current model
-	prime_time = millis();
 	g_prime_time = millis();
+	who(); Serial.println(" now in priming mode");
     } else if (Mode == FLOW) {
 	digitalWrite(pump, 0);                 // Turn off the pump
 	if (valve_state == OFF) {
 		digitalWrite(activate, 1);      // Activate high current/voltage source
 		digitalWrite(hold, 1);          // Open the valve
-		valve_state = HIGH_POWER_MODE;  // Identify High current mode
-		g_valve_state = HIGH_POWER_MODE; // Identify High current mode
+		g_valve_state = valve_state = HIGH_POWER_MODE;  // Identify High current mode
+		who(); Serial.println(" explicity placed in FLOW mode");
 	}
     } else if (Mode == OFF) {
 	digitalWrite(activate, 0);   // Everything off
 	digitalWrite(hold,     0);
 	digitalWrite(pump,     0);
+	g_valve_state = valve_state = OFF;
+	who(); Serial.println(" valve and pump turned OFF");
     }
-    g_start_time = start_time = millis();
+    g_start_time = millis();
     currentMode = Mode;
 }
 
-void PUMP::who() { Serial.print("(");Serial.print(myname);Serial.print(") ");} 
+void PUMP::who() { Serial.print(myname); } 
 
 boolean PUMP::check() {
 	if (g_valve_state == HIGH_POWER_MODE and duration() > VALVE_ACTIVATION_MS) {
@@ -64,7 +70,7 @@ boolean PUMP::check() {
 		valve_state = LOW_POWER_MODE;
 		g_valve_state = LOW_POWER_MODE;
 		who();
-		Serial.println("Valve activation power off (low power mode)");
+		Serial.println(" switching to low power (valve open) mode");
 	}
 	return priming();
 }
@@ -79,7 +85,7 @@ boolean PUMP::priming() {
 	if (currentMode == PRIME) {
 		if ( ( millis() - g_prime_time) > MAX_PRIMING_TIME_MS ) {
 			who();
-			Serial.println("Priming time exceeded");
+			Serial.print(" exceeded priming time ");
 			setMode(FLOW);
 			return false;
 		}

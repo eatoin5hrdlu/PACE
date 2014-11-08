@@ -6,14 +6,14 @@ class PUMP
 {
   public:
 
-  #define OFF    0
-  #define PRIME	 1
-  #define FLOW   2
-  #define HIGH_POWER_MODE 3
-  #define LOW_POWER_MODE  4
+   #define OFF    0
+   #define PRIME  1
+   #define FLOW   2
+   #define HIGH_POWER_MODE 3
+   #define LOW_POWER_MODE  4
 
-  #define VALVE_ACTIVATION_MS   5000  // One second
-  #define MAX_PRIMING_TIME_MS  20000 // Twenty seconds 
+  #define VALVE_ACTIVATION_MS   5000  // Five seconds
+  #define MAX_PRIMING_TIME_MS  10000 // Ten seconds 
 
   PUMP(char *,int,int,int);  // Name and configure pins for Pump, Activate, and Hold
 
@@ -25,16 +25,14 @@ class PUMP
   void who();
 
   private:
-  static int g_start_time;
-  static int g_valve_state;
-  static int g_prime_time;
+  static int      g_valve_state;
+  static long int g_start_time;
+  static long int g_prime_time;
 
     char myname[20];
     int currentMode;
     int pump, activate, hold;
     int valve_state;
-    int start_time;
-    int prime_time;
 };
 #endif
 
