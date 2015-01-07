@@ -1,0 +1,28 @@
+#include "bipolar.h"
+
+//#define NUMSAMPLES 12
+//#define SAMPLETIME 45
+
+#define NUMSAMPLES 4
+#define SAMPLETIME 1
+
+BIPOLAR bp = BIPOLAR(NUMSAMPLES, SAMPLETIME);
+boolean once = true;
+
+void setup()
+{
+	Serial.begin(9600);
+	once = true;
+}
+
+void loop()
+{
+	Serial.println("loop");
+	if (once) {
+		bp.run();
+		once = false;
+	}
+	else
+		delay(1000);
+}
+
