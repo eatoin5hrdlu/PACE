@@ -5,7 +5,7 @@ mirrorthick = 2;
 
 // magradius = 5;
 magradius = 5.2; // sensor: slip-on oversized magradius
-melexis = 4.5;   // digital temp sensor
+melexis = 4.6;   // digital temp sensor
 
 magthick = 3;
 nummagnets = 6;
@@ -91,11 +91,14 @@ module mirrordevice() {
 }
 
 module sensordevice() {
-
-     translate([ 17,7,0]) cube([10,2,10],center=true);
-     translate([-17,7,0]) cube([10,2,10],center=true);
+     translate([26,30,4]) cube([5,62,34],center=true);
+     translate([-26,30,4]) cube([5,62,34],center=true);
+     translate([0,31,19]) cube([48,60,4],center=true);
+     translate([ 17,7,-4]) cube([12,2,12],center=true);
+     translate([-17,7,-4]) cube([12,2,12],center=true);
 	difference() {
-	  translate([0,0,6]) cube([48,20,30], center=true);
+	  translate([0,0,4]) cube([48,20,34], center=true);
+translate([0,0,-4]) union() {
      translate([17,0,0]) rotate([90,0,0]) magnet(22);
      translate([-17,0,0]) rotate([90,0,0]) magnet(22);
      translate([0,0,14]) rotate([90,0,0]) cylinder(r=melexis,h=30,center=true);
@@ -103,17 +106,18 @@ module sensordevice() {
      translate([5,0,0]) rotate([90,0,0]) cylinder(r=2,h=30,center=true);
      translate([-5,0,0]) rotate([90,0,0]) cylinder(r=2,h=30,center=true);
 
-     translate([14,8,14]) rotate([90,0,0]) cylinder(r=1.4,h=10,center=true);
-     translate([-14,8,14]) rotate([90,0,0]) cylinder(r=1.4,h=10,center=true);
+ //    translate([14,8,14]) rotate([90,0,0]) cylinder(r=1.4,h=10,center=true);
+  //   translate([-14,8,14]) rotate([90,0,0]) cylinder(r=1.4,h=10,center=true);
 
 
 	  translate([20,-52,0])
        rotate([0,90,0])
 	     cylinder(r=50,h=120,center=true,$fn=64);
+   } // end union
  }
 }
 
-//rotate([0,180,0]) sensordevice();
+rotate([0,180,0]) sensordevice();
 //translate([0,-15,-2]) rotate([0,0,-135])
-                  mirrordevice();
+//                  mirrordevice();
 //mirrorcup();
