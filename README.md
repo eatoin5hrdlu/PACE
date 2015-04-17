@@ -1,4 +1,5 @@
 EvoStat:  A PhageStat to support PACE and PATHE Experiments
+NB: in the process of namechange from PACE to EvoStat. PACE github repository will disappear EvoStat will appear.
 ====
 Software and Hardware for a low-cost platform for PACE and PATHE experiments.
 
