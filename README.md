@@ -12,8 +12,7 @@ SWI-Prolog based web server, GUI, and Turbidostat control software
 is written mostly in Prolog/Xpce with some Python (e.g. pySerial, for a 
 portable serial interface to Arduino) and HTML. Bluetooth interface added as foreign function library to SWI-Prolog currently eliminates the need for pySerial. See github.com/eatoin5hrdlu/plblue 
 
-Running EvoStat on a Linux or Windows machine provides an interface
-for up to 16 turbidostats: Bluetooth connected Arduino running host.ino for the Host Cellstat, multiple Bluetooth connected Arduinos for Lagoons (lagoon.ino), and a sample collector: Bluetooth connected Arduino running collector.ino.
+Running EvoStat on a Linux or Windows machine provides an interface for multiple phageStats with using Bluetooth connected Arduino running host.ino for the Host Cellstat, multiple Bluetooth connected Arduinos for Lagoons (lagoon.ino), and a sample collector: Bluetooth connected Arduino running collector.ino. (Using a WiFi camera and bluetooth modules has reduced apparatus wiring by 90%)
 
 It also contains a web server to provide essentially the same
 interface via the URL:  
