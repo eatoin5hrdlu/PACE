@@ -1,23 +1,22 @@
-PACE :  Phage-Assisted Continuous Evolution
+EvoStat:  A PhageStat to support PACE and PATHE Experiments
 ====
-Software for a low-cost implementation of  PACE apparatus.
+Software and Hardware for a low-cost platform for PACE and PATHE experiments.
 
-PACE is described by David R. Liu, Kevin M. Esvelt and Jacob C. Carlson
-in    http://www.ncbi.nlm.nih.gov/pubmed/21478873
+PATHE (Phage-Assisted Three-Hybrid Evolution) is an enhancement to PACE (Phage Assisted Continuous Evolution) described by Kevin M. Esvelt, Jacob C. Carlson, and David R. Liu in http://www.ncbi.nlm.nih.gov/pubmed/21478873
 
-This project contains Arduino code for Turbidostats and the Sample Collector,
-as well as the server software to provide an on-screen interface to Turbidostat
+This project contains Arduino code for a CellStat(Turbidostat), Sample Collector, and Lagoons
+as well as the server software to provide an on-screen interface to Temperature, Turbidity, Flowrate,
 and Sample Collector control and Web interface.
 
 SWI-Prolog based web server, GUI, and Turbidostat control software
 is written mostly in Prolog/Xpce with some Python (e.g. pySerial, for a 
 portable serial interface to Arduino) and HTML.
 
-Running PACE on a Linux or Windows machine provides an interface
-for up to 16 turbidostats: USB connected Arduinos running pace.ino
-and one sample collector: USB connected Arduino running collector.ino.
+Running EvoStat on a Linux or Windows machine provides an interface
+for up to 16 turbidostats: Bluetooth connected Arduino running host.ino for the Host Cellstat, multiple Bluetooth connected Arduinos for Lagoons (lagoon.ino), and a sample collector: Bluetooth connected Arduino running collector.ino.
+
 It also contains a web server to provide essentially the same
-interface via the URL:  &lt;machine-name&gt;:8080/pace.pl
+interface via the URL:  http://&lt;machine-name&gt;:8080/evostat.pl
 
 Prerequisite Software
 ====
@@ -30,7 +29,7 @@ Getting Started
 ====
 Clone the repo:
 
-    git clone https://github.com/eatoin5hrdlu/PACE.git
+    git clone https://github.com/eatoin5hrdlu/EvoStat.git
 
 Run the app:
 
