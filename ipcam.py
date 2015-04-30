@@ -116,6 +116,7 @@ def showThisColor(color) :
         if cv.WaitKey(10) == 27:
             return
 
+
 # Narrow to each lagoon from initial blob detection
 def bioBlobs(color) :
     frame = ipcam.grab()
@@ -127,13 +128,17 @@ def bioBlobs(color) :
         halfothers = cv2.addWeighted(temp[:,:,(color+1)%3], 0.55, temp[:,:,(color+2)%3], 0.55, 0 )
         picked=cv2.addWeighted(picked,.85, cv2.subtract(temp[:,:,color],halfothers), 0.7, 0)
         sat = 0
-        total = 0
-        (rows, cols) = picked.shape
-        for i in range(rows) :
-            for j in range(cols) :
-                total = total+1
-                if (picked[i,j] > 250) :
-                    sat = sat + 1
+        x1 = 500
+        x2 = 600
+        y1 = 350
+        y2 = 450
+        total = (x2-x1)*(y2-y1)
+        sat = cv2.countNonZero(cv2.subtract(picked[y1:y2,x1:x2], 250))
+        cv2.rectangle(picked,(x1,y1),(x2,y2),255)
+#        for i in range(rows) :
+#            for j in range(cols) :
+#                if (picked[i,j] > 250) :
+#                    sat = sat + 1
         print str(sat) + " saturated out of " + str(total) + " at cycle " + str(cycle)
         if not frame == None :
             cv2.imshow("camera", picked)
