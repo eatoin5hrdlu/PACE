@@ -26,7 +26,7 @@ import re
 class ipCamera(object):
 
     def __init__(self, ip_or_mac):
-        self.defaultIP = "172.16.3.89"    # Set this and we won't need to be superuser
+        self.defaultIP = "172.16.3.101"    # Set this and we won't need to be superuser
         self.ip = self.ValidIP(ip_or_mac)
         if (self.ip == None):
             print ip_or_mac, " is not a valid IP/MAC for a Camera"
@@ -83,8 +83,8 @@ class ipCamera(object):
         if (ret) :
             ipstr = ret.split()[0]
             print "Camera is at IP address: " + ipstr
-            if not ipstr == defaultIP:
-                print "please change defaultIP("+defaultIP+") in ipcam.py to ", ipstr
+            if not ipstr == self.defaultIP:
+                print "please change defaultIP("+self.defaultIP+") in ipcam.py to ", ipstr
             return ipstr
         return None
  
@@ -102,23 +102,55 @@ class ipCamera(object):
         except urllib2.URLError, msg :
             print msg, " Failed sending command to camera at ", self.ip
 
-#outdoor = "00:62:6e:4f:17:d9"
-#indoor =  "c4:d6:55:34:8d:07"
+# Color can be Blue=0, Green=1, or Red=2 (openCV => BGR, not RGB)
+# Image represents integration of [ selected color - 1/2(unselected colors) ]
+def showThisColor(color) :
+    frame = ipcam.grab()
+    picked = frame[:,:,color]  # Start with selected color image
+    while True:
+        temp =  ipcam.grab()
+        halfothers = cv2.addWeighted(temp[:,:,(color+1)%3], 0.55, temp[:,:,(color+2)%3], 0.55, 0 )
+        picked=cv2.addWeighted(picked,.85, cv2.subtract(temp[:,:,color],halfothers), 0.7, 0)
+        if not frame == None :
+            cv2.imshow("camera", picked)
+        if cv.WaitKey(10) == 27:
+            return
+
+# Narrow to each lagoon from initial blob detection
+def bioBlobs(color) :
+    frame = ipcam.grab()
+    picked = frame[:,:,color]  # Start with selected color image
+    cycle = 0
+    while True:
+        cycle = cycle + 1
+        temp =  ipcam.grab()
+        halfothers = cv2.addWeighted(temp[:,:,(color+1)%3], 0.55, temp[:,:,(color+2)%3], 0.55, 0 )
+        picked=cv2.addWeighted(picked,.85, cv2.subtract(temp[:,:,color],halfothers), 0.7, 0)
+        sat = 0
+        total = 0
+        (rows, cols) = picked.shape
+        for i in range(rows) :
+            for j in range(cols) :
+                total = total+1
+                if (picked[i,j] > 250) :
+                    sat = sat + 1
+        print str(sat) + " saturated out of " + str(total) + " at cycle " + str(cycle)
+        if not frame == None :
+            cv2.imshow("camera", picked)
+        if cv.WaitKey(10) == 27:
+            return
 
 if __name__ == "__main__" :
+    outdoor = "00:62:6e:4f:17:d9"
     indoor = "c4:d6:55:34:8d:07"
     ipcam = ipCamera(indoor)
     br = 100  # 0-240 for indoor
     co = 4    # 0-6 for indoor
     ipcam.brightness(br);
     ipcam.contrast(co);
-    frame = ipcam.grab()
-    green = frame[:,:,1]
-    while True:
-        temp =  ipcam.grab()
-        halfbluered = cv2.addWeighted( temp[:,:,0], 0.55, temp[:,:,2], 0.55, 0 )
-        green = cv2.addWeighted(green, .85, cv2.subtract(temp[:,:,1],halfbluered), 0.7, 0)
-        if not frame == None :
-            cv2.imshow("camera", green)
-        if cv.WaitKey(10) == 27:
-            break
+    cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
+    cv2.moveWindow("camera", 20, 10)
+    bioBlobs(1)
+    showThisColor(0)
+    showThisColor(1)
+    showThisColor(2)
