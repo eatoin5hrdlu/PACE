@@ -11,9 +11,14 @@ import numpy as np
 import os, subprocess
 import re
 Lagoon = [{},{},{},{}]
+#
 # Lagoons are dictionaries, maxiumum four (for now)
-
-# IPCamera module kknows about different cameras
+#
+# IPCamera module kknows about different cameras can find camera on 
+# network from MAC address, but requires superuser and takes a long time
+# This process should write the IP address into config file along
+# with lagoon locations and other things which won't be changing
+#
 # Fluorescence module does color integration (returns saturation cycle)
 # Blob detection module ( find lagoon/cellstat coordinates)
 # import ipcam, fluor, blob
@@ -177,6 +182,7 @@ def drawBlobs(image,bbs) :
     i = 0
     for bb in bbs :
         cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],2)
+        cv2.circle(image,(bb[0],bb[1]),10,cler[(i+1)%4],2)
         i = i + 1
 
 def outlineLagoons(image) :
@@ -225,6 +231,7 @@ def blobs2lagoons(bbs) :
     
 
 if __name__ == "__main__" :
+    global Lagoon
     lagoon_position = { 'Lagoon1' : (200,500,300,700),
                         'Lagoon2' : (400,500,500,700),
                         'Lagoon3' : (700,500,800,700),
@@ -249,7 +256,10 @@ if __name__ == "__main__" :
 #    sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
     bbs = b.blobs(frame2)
     sbbs = blobs2lagoons(bbs)
-    print len(sbbs)
+    if (len(bbs) == 4) :
+        for i in range(4) :
+            Lagoon[i]['name'] = 'Lagoon'+str(i+1)
+            Lagoon[i]['bbox'] = bbs[i]
     drawBlobs(frame2,sbbs)
 #    print bbs
 #    print sorted(bbs)
