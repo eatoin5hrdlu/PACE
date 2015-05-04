@@ -1,3 +1,4 @@
+#!/usr/bin/python -u
 #!C:/Python27/python -u
 import base64
 import time
@@ -9,6 +10,9 @@ import numpy as np
 
 import os, subprocess
 import re
+Lagoon = [{},{},{},{}]
+# Lagoons are dictionaries, maxiumum four (for now)
+
 # IPCamera module kknows about different cameras
 # Fluorescence module does color integration (returns saturation cycle)
 # Blob detection module ( find lagoon/cellstat coordinates)
@@ -33,8 +37,9 @@ class ipCamera(object):
        Image represents integration of [ selected color - 1/2(unselected colors) ]"""
 
     def __init__(self, ip_or_mac):
-        self.defaultIP = "192.168.254.26" # IP for Windows or no superuser
-#            self.defaultIP = "172.16.3.101"
+#        self.defaultIP = "192.168.254.26" # IP for Windows or no superuser
+#Sun    self.defaultIP = "172.16.3.101"
+        self.defaultIP = "172.16.3.161"
         self.ip = self.ValidIP(ip_or_mac)
         if (self.ip == None) :
             print ip_or_mac, " is not a valid IP/MAC for a Camera"
@@ -156,10 +161,68 @@ class ipCamera(object):
             print str(sat) + " saturated " + str(lit) + " detected out of " + str(total) + " at cycle " + str(cycle)
             cv2.rectangle(picked,(x1,y1),(x2,y2),255)
             if not frame == None :
-                self.labelImage(picked,color)
+                self.labelImage(picked,cler)
                 cv2.imshow("camera", picked)
             if cv.WaitKey(10) == 27:
                 return
+
+gstate = -1
+def findBlob(image) :
+        global gstate
+        gstate = gstate + 1
+        return (100,33,30,80)
+
+def drawBlobs(image,bbs) :
+    cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
+    i = 0
+    for bb in bbs :
+        cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],2)
+        i = i + 1
+
+def outlineLagoons(image) :
+    cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
+    for i in range(4) :
+        bbx = Lagoon[i]['bbox']
+        cv2.rectangle(image,(bbx[0],bbx[1]),(bbx[0]+bbx[2],bbx[1]+bbx[3]),cler[i],3)
+
+def findLagoons(image) :
+    """Find blobs in sub-images and then add the offset to the results"""
+    global Lagoon
+    for i in range(4) :
+        Lagoon[i]['name'] = 'Lagoon'+str(i+1)
+        Lagoon[i]['bbox'] = None
+
+    (rows, cols, depth) = image.shape;
+# We start recognizing blobs from the left margin = 0 and
+# then move the margin past that blob to look for the next
+    x1 = 0
+    for i in range(4) :
+        subimage = image[rows/2:rows, x1:cols, 1]
+        Lagoon[i]['bbox'] = [sum(x) for x in zip(findBlob(subimage),(x1,rows/2,0,0))]
+        x1 = Lagoon[i]['bbox'][0] + Lagoon[i]['bbox'][2]  # Move left edge of subimage past blob
+    outlineLagoons(image)
+    cv2.imshow("camera", image)
+    if cv.WaitKey(4000) == 27:
+            exit()
+    
+def blobs2lagoons(bbs) :
+    sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
+    lagoons = []
+    ln = 0
+    for bb in sbbs :
+        if len(lagoons) == 0 :
+            lagoons.append(bb)
+            ln = ln + 1
+        else :
+            pbb = lagoons[ln-1]
+            if bb[0] > pbb[0]+pbb[2] :
+                lagoons.append(bb)
+                ln = ln + 1
+    return lagoons
+                
+            
+        
+    
 
 if __name__ == "__main__" :
     lagoon_position = { 'Lagoon1' : (200,500,300,700),
@@ -168,23 +231,40 @@ if __name__ == "__main__" :
                         'Lagoon4' : (900,500,1000,700) }
     outdoor = "00:62:6e:4f:17:d9"
     indoor = "c4:d6:55:34:8d:07"
-    ipcam = ipCamera(outdoor)
-    b = blob.Blob(2) # A blob detector for green(1) blobs
-    br = 80  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
-    co = 50    # 0-6 for indoor  0-100 for outdoor
+    ipcam = ipCamera(indoor)
+    b = blob.Blob(1) # A blob detector for green(1) blobs
+#    br = 80  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
+#    co = 50    # 0-6 for indoor  0-100 for outdoor
+    br = 200  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
+    co = 4    # 0-6 for indoor  0-100 for outdoor
     ipcam.brightness(br)
     ipcam.contrast(co)
     cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
+    cv2.moveWindow("camera", 100, 200)
     frame = ipcam.grab()
-    bbs = b.blobs(frame)
-    cv2.imshow("camera", frame)
+    frame2 = frame.copy()
+#    findLagoons(frame)
+    frame2 = frame2[300:480,0:260,:]
+#    bbs = b.blobs(frame2)
+#    sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
+    bbs = b.blobs(frame2)
+    sbbs = blobs2lagoons(bbs)
+    print len(sbbs)
+    drawBlobs(frame2,sbbs)
+#    print bbs
+#    print sorted(bbs)
+    cv2.imshow("camera", frame2)
     if cv.WaitKey(4000) == 27:
-	exit()
-    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
-    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
-    ipcam.bioBlobs(1,lagoon_position['Lagoon3'])
-    ipcam.bioBlobs(0,lagoon_position['Lagoon4'])
+            exit()
+#    cv2.imshow("camera", frame)
+#    if cv.WaitKey(4000) == 27:
+#	exit()
+#    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
+#    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
+#    ipcam.bioBlobs(1,lagoon_position['Lagoon3'])
+#    ipcam.bioBlobs(0,lagoon_position['Lagoon4'])
 #    bioBlobs(1)
 #    showThisColor(0)
 #    showThisColor(1)
 #    showThisColor(2)
+

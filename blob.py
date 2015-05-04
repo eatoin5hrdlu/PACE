@@ -8,7 +8,7 @@ class Blob(object):
     """Find blobs of a particular color (Blue=0,Green=1,Red=2) (openCV => BGR)
        returns list of bounding rectangles which should be the lagoons"""
  
-    def __init__(self, color, minsize=25, maxsize=300):
+    def __init__(self, color, minsize=30, maxsize=160):
 	self.color = color
 	self.minDim = minsize
 	self.maxDim = maxsize
@@ -47,9 +47,9 @@ class Blob(object):
 			bbs.append(cv2.boundingRect(c))
 
 	print ") " + str(toosmall) +  " too small " + str(toolarge) + " too large"
-	pen = (255,255,255) # White
-	for r in bbs:
-		cv2.rectangle(img,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),pen,2)
+#	pen = (255,255,255) # White
+#	for r in bbs:
+#		cv2.rectangle(img,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),pen,2)
 	return bbs
 
 
