@@ -1,20 +1,16 @@
-#!C:/Python27/python -u
 #!/usr/bin/python -u
-import base64
-import time
-import urllib2
+#!C:/Python27/python -u
+import os, time, subprocess, re
+import base64, urllib2
  
+import numpy as np
 import cv2
 import cv2.cv as cv
-import numpy as np
-
-import os, subprocess
-import re
 
 Lagoon = {}
 
 #
-# Lagoons are dictionaries, maxiumum four (for now)
+# Lagoons is a dictionary containing the coordinates by name "LagoonN"
 #
 # IPCamera module kknows about different cameras can find camera on 
 # network from MAC address, but requires superuser and takes a long time
@@ -25,6 +21,7 @@ Lagoon = {}
 # Blob detection module ( find lagoon/cellstat coordinates)
 # import ipcam, fluor, blob
 import blob
+import level
 
 #outdoor = "00:62:6e:4f:17:d9"
 #indoor =  "c4:d6:55:34:8d:07"
@@ -59,7 +56,7 @@ class ipCamera(object):
     def __init__(self, ip_or_mac):
 #        self.defaultIP = "192.168.254.26" # IP for Windows or no superuser
 #Sun    self.defaultIP = "172.16.3.101"
-        self.defaultIP = "172.16.3.161"
+        self.defaultIP = "172.16.3.164"
         self.ip = self.ValidIP(ip_or_mac)
         if (self.ip == None) :
             print ip_or_mac, " is not a valid IP/MAC for a Camera"
@@ -196,38 +193,40 @@ def drawBlobs(image,bbs) :
     cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
     i = 0
     for bb in bbs :
-        cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],2)
-        cv2.circle(image,(bb[0],bb[1]),10,cler[(i+1)%4],2)
+        cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],1)
+        cv2.circle(image,(bb[0],bb[1]),5,cler[(i+1)%4],2)
         i = i + 1
 
 def outlineLagoons(image) :
     global Lagoon
     cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
     for i in range(4) :
-        bbx = Lagoon[i]['bbox']
-        cv2.rectangle(image,(bbx[0],bbx[1]),(bbx[0]+bbx[2],bbx[1]+bbx[3]),cler[i],3)
+        bbx = Lagoon['Lagoon'+str(i)]
+        cv2.rectangle(image,(bbx[0],bbx[1]),(bbx[0]+bbx[2],bbx[1]+bbx[3]),cler[i],1)
 
 def findLagoons(image) :
     """Find blobs in sub-images and then add the offset to the results"""
     global Lagoon
-    for i in range(4) :
-        Lagoon[i]['name'] = 'Lagoon'+str(i+1)
-        Lagoon[i]['bbox'] = None
-
     (rows, cols, depth) = image.shape;
 # We start recognizing blobs from the left margin = 0 and
 # then move the margin past that blob to look for the next
     x1 = 0
     for i in range(4) :
+        name = 'Lagoon'+str(i)
         subimage = image[rows/2:rows, x1:cols, 1]
-        Lagoon[i]['bbox'] = [sum(x) for x in zip(findBlob(subimage),(x1,rows/2,0,0))]
-        x1 = Lagoon[i]['bbox'][0] + Lagoon[i]['bbox'][2]  # Move left edge of subimage past blob
+        Lagoon[name] = [sum(x) for x in zip(findBlob(subimage),(x1,rows/2,0,0))]
+        x1 = Lagoon[name][0] + Lagoon[name][2]  # Move left edge of subimage past blob
     outlineLagoons(image)
     cv2.imshow("camera", image)
     if cv.WaitKey(4000) == 27:
             exit()
     
 def blobs2lagoons(bbs) :
+    """The bottom edges of identified blobs should line up.
+    These are the actual bottoms of the lagoons.  The tops will vary
+    because they represent the liquid levels, so we create a set of
+    outlines to include maxiumum fill levels.  These are the only 
+    regions of interest for our horizontal line (liquid level) detection"""
     sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
     lagoons = []
     ln = 0
@@ -237,10 +236,14 @@ def blobs2lagoons(bbs) :
             ln = ln + 1
         else :
             pbb = lagoons[ln-1]
-            if bb[0] > pbb[0]+pbb[2] :
+            if bb[0] > pbb[0]+(pbb[2]/2) :
                 lagoons.append(bb)
                 ln = ln + 1
-    return lagoons
+    lagoonHeight = 80
+    outlines = []
+    for l in lagoons:
+        outlines.append((l[0],l[1]-(lagoonHeight-l[3]), l[2],lagoonHeight))
+    return outlines
                 
 if __name__ == "__main__" :
     print Lagoon
@@ -251,6 +254,7 @@ if __name__ == "__main__" :
     indoor = "c4:d6:55:34:8d:07"
     ipcam = ipCamera(indoor)
     b = blob.Blob(1) # A blob detector for green(1) blobs
+    ldet = level.Level()  # A level detector
 #    br = 80  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
 #    co = 50    # 0-6 for indoor  0-100 for outdoor
     br = 200  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
@@ -263,23 +267,41 @@ if __name__ == "__main__" :
     frame2 = frame.copy()
 #    findLagoons(frame)
     frame2 = frame2[300:480,0:260,:]
+    print frame2.shape
 #    bbs = b.blobs(frame2)
 #    sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
     bbs = b.blobs(frame2)
     sbbs = blobs2lagoons(bbs)
-    if (len(bbs) == 4) :
+    if (len(sbbs) >= 4) :
         for i in range(4) :
-            Lagoon[i]['name'] = 'Lagoon'+str(i+1)
-            Lagoon[i]['bbox'] = bbs[i]
+            Lagoon['Lagoon'+str(i+1)] = sbbs[i]
+            print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
+    else :
+        print "Need at least four bbs, but got " + str(len(sbbs))
+    print frame2.shape
+    print frame2.shape
     drawBlobs(frame2,sbbs)
 #    print bbs
 #    print sorted(bbs)
+    print frame2.shape
     cv2.imshow("camera", frame2)
-    if cv.WaitKey(4000) == 27:
+    print frame2.shape
+    if cv.WaitKey(6000) == 27:
+        exit()
+    for k in Lagoon.keys():
+        print k
+        bb = Lagoon[k]
+        print bb
+        print (bb[0], bb[0]+bb[2] , bb[1], bb[1]+bb[3])
+        print frame2.shape
+        subi = frame2[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
+        print subi.shape
+        lvl = ldet.level(subi)
+        print lvl
+        cv2.line(frame2,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),2)
+        cv2.imshow("camera", frame2)
+        if cv.WaitKey(4000) == 27:
             exit()
-#    cv2.imshow("camera", frame)
-#    if cv.WaitKey(4000) == 27:
-#	exit()
 #    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon3'])
