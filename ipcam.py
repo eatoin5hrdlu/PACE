@@ -1,5 +1,5 @@
-#!/usr/bin/python -u
 #!C:/Python27/python -u
+#!/usr/bin/python -u
 import base64
 import time
 import urllib2
@@ -10,7 +10,9 @@ import numpy as np
 
 import os, subprocess
 import re
-Lagoon = [{},{},{},{}]
+
+Lagoon = {}
+
 #
 # Lagoons are dictionaries, maxiumum four (for now)
 #
@@ -36,6 +38,19 @@ import blob
 #cmd = "/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2"
 #usrpw = "&usr=admin&pwd=lakewould"
 
+def config_out():
+    global Lagoon
+    f = open('pace.config', 'w')
+    print f
+    print "THIS" + str(Lagoon)
+    f.write(str(Lagoon))
+    f.close()
+
+def config_in():
+    global Lagoon
+    f = open('pace.config', 'r')
+    Lagoon = eval(f.read())
+    f.close()
 
 class ipCamera(object):
     """Color can be Blue=0, Green=1, or Red=2 (openCV => BGR, not RGB)
@@ -186,6 +201,7 @@ def drawBlobs(image,bbs) :
         i = i + 1
 
 def outlineLagoons(image) :
+    global Lagoon
     cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
     for i in range(4) :
         bbx = Lagoon[i]['bbox']
@@ -226,16 +242,11 @@ def blobs2lagoons(bbs) :
                 ln = ln + 1
     return lagoons
                 
-            
-        
-    
-
 if __name__ == "__main__" :
-    global Lagoon
-    lagoon_position = { 'Lagoon1' : (200,500,300,700),
-                        'Lagoon2' : (400,500,500,700),
-                        'Lagoon3' : (700,500,800,700),
-                        'Lagoon4' : (900,500,1000,700) }
+    print Lagoon
+    config_in()
+    for k in Lagoon.keys():
+        print k + ": Bounding Box = " + str(Lagoon[k])
     outdoor = "00:62:6e:4f:17:d9"
     indoor = "c4:d6:55:34:8d:07"
     ipcam = ipCamera(indoor)
