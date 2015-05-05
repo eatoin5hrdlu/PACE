@@ -7,7 +7,9 @@ import numpy as np
 import cv2
 import cv2.cv as cv
 
+LagoonRegion = (300,0,480,260)
 Lagoon = {}
+Level = {}
 
 #
 # Lagoons is a dictionary containing the coordinates by name "LagoonN"
@@ -245,63 +247,56 @@ def blobs2lagoons(bbs) :
         outlines.append((l[0],l[1]-(lagoonHeight-l[3]), l[2],lagoonHeight))
     return outlines
                 
+def setupCamera() :
+    outdoor = "00:62:6e:4f:17:d9"
+    indoor = "c4:d6:55:34:8d:07"
+    cam = ipCamera(indoor)
+    br = 200  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
+    co = 4    # 0-6 for indoor  0-100 for outdoor
+    #    br = 80  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
+    #    co = 50    # 0-6 for indoor  0-100 for outdoor
+    cam.brightness(br)
+    cam.contrast(co)
+    cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
+    cv2.moveWindow("camera", 100, 200)
+    return cam
+
+
 if __name__ == "__main__" :
     print Lagoon
     config_in()
     for k in Lagoon.keys():
         print k + ": Bounding Box = " + str(Lagoon[k])
-    outdoor = "00:62:6e:4f:17:d9"
-    indoor = "c4:d6:55:34:8d:07"
-    ipcam = ipCamera(indoor)
+    ipcam = setupCamera()
     b = blob.Blob(1) # A blob detector for green(1) blobs
-    ldet = level.Level()  # A level detector
-#    br = 80  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
-#    co = 50    # 0-6 for indoor  0-100 for outdoor
-    br = 200  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
-    co = 4    # 0-6 for indoor  0-100 for outdoor
-    ipcam.brightness(br)
-    ipcam.contrast(co)
-    cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
-    cv2.moveWindow("camera", 100, 200)
+    ldet = level.Level()  # A level detector for monochrome images
     frame = ipcam.grab()
-    frame2 = frame.copy()
 #    findLagoons(frame)
-    frame2 = frame2[300:480,0:260,:]
-    print frame2.shape
-#    bbs = b.blobs(frame2)
-#    sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
-    bbs = b.blobs(frame2)
-    sbbs = blobs2lagoons(bbs)
+    (x1,y1,x2,y2) = LagoonRegion
+    frame = frame[x1:x2,y1:y2,:] # Monochrome, cropped for lagoons
+    print frame.shape
+    bbs = b.blobs(frame)
+    sbbs = blobs2lagoons(bbs)  # e.g. sorted
     if (len(sbbs) >= 4) :
         for i in range(4) :
             Lagoon['Lagoon'+str(i+1)] = sbbs[i]
             print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
     else :
         print "Need at least four bbs, but got " + str(len(sbbs))
-    print frame2.shape
-    print frame2.shape
-    drawBlobs(frame2,sbbs)
-#    print bbs
-#    print sorted(bbs)
-    print frame2.shape
-    cv2.imshow("camera", frame2)
-    print frame2.shape
+    drawBlobs(frame,sbbs)  # Show level detection regions
+    cv2.imshow("camera", frame)
     if cv.WaitKey(6000) == 27:
         exit()
     for k in Lagoon.keys():
-        print k
         bb = Lagoon[k]
-        print bb
-        print (bb[0], bb[0]+bb[2] , bb[1], bb[1]+bb[3])
-        print frame2.shape
-        subi = frame2[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
-        print subi.shape
+        subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
         lvl = ldet.level(subi)
-        print lvl
-        cv2.line(frame2,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),2)
-        cv2.imshow("camera", frame2)
+        Level[k] = lvl
+        cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),2)
+        cv2.imshow("camera", frame)
         if cv.WaitKey(4000) == 27:
             exit()
+
 #    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon3'])

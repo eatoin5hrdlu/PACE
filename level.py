@@ -39,7 +39,6 @@ class Level(object):
         topline = 1000
         for lines in alllines:
             for l in lines : # Find the highest (minY) line (not on the edge)
-                print l
                 if (l[1] == l[3]) : # Horizontal?
                     if ( l[1] < topline and l[1] > 5 and l[1] < h-5) :
                         topline = l[1]
