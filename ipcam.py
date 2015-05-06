@@ -12,43 +12,19 @@ lagoonHeight = 80
 Lagoon = {}
 Levels = {}
 
+configFile = "evo.settings"
+
 #
-# Lagoons is a dictionary containing the coordinates by name "LagoonN"
-#
-# IPCamera module kknows about different cameras can find camera on 
-# network from MAC address, but requires superuser and takes a long time
-# This process should write the IP address into config file along
-# with lagoon locations and other things which won't be changing
+# IPCamera knows about different IP cameras (as well as USB cams) and
+# can find the IP address from a MAC address (requiring linux and superuser and time)
+# This process will report the IP address which should be edited into evo.settings file
+# along with with lagoon locations and other things which won't be changing.
 #
 # Fluorescence module does color integration (returns saturation cycle)
 # Blob detection module ( find lagoon/cellstat coordinates)
-# import ipcam, fluor, blob
-import blob
-import level
+# import ipcam, fluor, blob, level
 
-#outdoor = "00:62:6e:4f:17:d9"
-#indoor =  "c4:d6:55:34:8d:07"
-# regular expressions
-#MAC        ([a-fA-F0-9]{2}[:|\-]?){6} )
-#IP ^((^(\d{1,3}\.){3}(\d{1,3})$)|([\da-fA-F]{1,4}:){7}([\da-fA-F]{1,4}))$
-# "http://"+ip+":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=lakewould"
-
-#defaultIP = "192.168.254.24"  # Change this so we don't need superuser to find it
-#port = ":88"
-#cmd = "/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2"
-#usrpw = "&usr=admin&pwd=lakewould"
-
-def write_settings():
-    global settings
-    f = open('evo.settings', 'w')
-    f.write(str(settings))
-    f.close()
-
-def read_settings():
-    global settings
-    f = open('evo.settings', 'r')
-    settings = eval(f.read())
-    f.close()
+import blob, level
 
 class ipCamera(object):
     """Color can be Blue=0, Green=1, or Red=2 (openCV => BGR, not RGB)
@@ -167,7 +143,7 @@ class ipCamera(object):
         colors = {0:"blue", 1:"green", 2:"red" }
         cv2.putText(img,colors[color],(10,80),cv2.FONT_HERSHEY_PLAIN,4.0,(240,80,200),2)
 
-    def updateLevels(self) :
+    def updateLevels(self,pause=1000) :
         """Levels are a percentage of the lagoon height (specified at the top of this file)
         To use mL as our standard unit of liquid level, we should add scaling param to evo.settings"""
         global Lagoons
@@ -187,7 +163,7 @@ class ipCamera(object):
                     goodRead = goodRead + 1
                     self.drawLagoons(frame)
                     cv2.imshow("camera", frame)
-                    if cv.WaitKey(150) == 27:
+                    if cv.WaitKey(pause) == 27:
                         exit()
                 else :
                     print str(lvl) + " out of range :" + str(bb)
@@ -195,11 +171,11 @@ class ipCamera(object):
         print "Levels " + str(Levels)
         return Levels
 
-    def updateLagoons(self) :
+    def updateLagoons(self,pause=1000) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
         print "Frame shape:" + str(frame.shape)
-        bbs = self.blobDet.blobs(frame)    # Find the green blobs
+        bbs = self.blobDet.blobs(frame,pause)    # Find the green blobs
         sbbs = self.blobs2lagoons(bbs)     # Sort them left to right and interpret as lagoon rectangles
         if (len(sbbs) >= 4) :         # Check to see that we have a reasonable number of lagoons
             for i in range(4) :
@@ -278,68 +254,43 @@ class ipCamera(object):
             if cv.WaitKey(10) == 27:
                 return
 
-gstate = -1
-def findBlob(image) :
-        global gstate
-        gstate = gstate + 1
-        return (100,33,30,80)
+# End of ipCamera Class
 
-def drawBBs(image,bbs) :
-    cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
-    i = 0
-    for bb in bbs :
-        cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],1)
-        cv2.circle(image,(bb[0],bb[1]),5,cler[(i+1)%4],2)
-        i = i + 1
+def write_settings():
+    global settings
+    f = open(configFile, 'w')
+    f.write(str(settings))
+    f.close()
 
-def outlineLagoons(image) :
-    global Lagoon
-    cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
-    for i in range(4) :
-        bbx = Lagoon['Lagoon'+str(i)]
-        cv2.rectangle(image,(bbx[0],bbx[1]),(bbx[0]+bbx[2],bbx[1]+bbx[3]),cler[i],1)
+def read_settings():
+    global settings
+    f = open(configFile, 'r')
+    settings = eval(f.read())
+    f.close()
 
-def findLagoons(image) :
-    """Find blobs in sub-images and then add the offset to the results"""
-    global Lagoon
-    (rows, cols, depth) = image.shape;
-# We start recognizing blobs from the left margin = 0 and
-# then move the margin past that blob to look for the next
-    x1 = 0
-    for i in range(4) :
-        name = 'Lagoon'+str(i)
-        subimage = image[rows/2:rows, x1:cols, 1]
-        Lagoon[name] = [sum(x) for x in zip(findBlob(subimage),(x1,rows/2,0,0))]
-        x1 = Lagoon[name][0] + Lagoon[name][2]  # Move left edge of subimage past blob
-    outlineLagoons(image)
-    cv2.imshow("camera", image)
-    if cv.WaitKey(4000) == 27:
-            exit()
-    
 def setupCamera() :
     cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
     if cv2.__dict__['moveWindow'] != None :
         cv2.moveWindow("camera", 100, 200)
     else :
-        print "cv2 does not contain moveWindow"
+        print "cv2 does not contain moveWindow. Update your OpenCV installation."
     cam = ipCamera('usb')
-#    cam = ipCamera('museum')
+#   cam = ipCamera('museum')
     cam.brightness(cam.params['brightness'])
     cam.contrast(cam.params['contrast'])
     return cam
 
-
 if __name__ == "__main__" :
-    print "Version = " + str(cv2.__version__)
+    print "OpenCV version = " + str(cv2.__version__)
     read_settings()               # Read evo.settings
     ipcam = setupCamera()         # Initialize Camera
     retry = True
     while(retry) :
         retry = False
-        ipcam.updateLagoons()
-        for i in range(30) :
-            if ( ipcam.updateLevels() == None) :
-                print "Retrying from blob(lagoon) detection"
+        ipcam.updateLagoons(4000) # blob contours shown for 4 seconds
+        for i in range(20) :
+            if ( ipcam.updateLevels(pause=10) == None) :
+                print "Go back to blob detection and try again"
                 retry = True
                 break
     print "Final Levels: " + str(Levels)
