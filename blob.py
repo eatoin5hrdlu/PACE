@@ -43,7 +43,7 @@ class Blob(object):
 #	gray = cv2.blur(gray, (16,16))
 	gray2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
         cv2.imshow("camera", gray2)
-        if cv.WaitKey(3000) == 27:
+        if cv.WaitKey(300) == 27:
                 exit()
 	contours, _ = cv2.findContours(gray2, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	print str(len(contours)) + " contours ( ",

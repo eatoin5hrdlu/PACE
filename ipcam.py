@@ -7,9 +7,10 @@ import numpy as np
 import cv2
 import cv2.cv as cv
 
-LagoonRegion = (300,0,480,260)
+#LagoonRegion = (300,0,480,260)
+lagoonHeight = 80
 Lagoon = {}
-Level = {}
+Levels = {}
 
 #
 # Lagoons is a dictionary containing the coordinates by name "LagoonN"
@@ -37,58 +38,54 @@ import level
 #cmd = "/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2"
 #usrpw = "&usr=admin&pwd=lakewould"
 
-def config_out():
-    global Lagoon
-    f = open('pace.config', 'w')
-    print f
-    print "THIS" + str(Lagoon)
-    f.write(str(Lagoon))
+def write_settings():
+    global settings
+    f = open('evo.settings', 'w')
+    f.write(str(settings))
     f.close()
 
-def config_in():
-    global Lagoon
-    f = open('pace.config', 'r')
-    Lagoon = eval(f.read())
+def read_settings():
+    global settings
+    f = open('evo.settings', 'r')
+    settings = eval(f.read())
     f.close()
 
 class ipCamera(object):
     """Color can be Blue=0, Green=1, or Red=2 (openCV => BGR, not RGB)
        Image represents integration of [ selected color - 1/2(unselected colors) ]"""
 
-    def __init__(self, ip_or_mac):
-#        self.defaultIP = "192.168.254.26" # IP for Windows or no superuser
-#Sun    self.defaultIP = "172.16.3.101"
-        self.defaultIP = "172.16.3.164"
-        self.ip = self.ValidIP(ip_or_mac)
-        if (self.ip == None) :
-            print ip_or_mac, " is not a valid IP/MAC for a Camera"
-            exit(1)
-        self.cameras = { "00:62:6e:4f:17:d9" : 'outdoor',
-                         "c4:d6:55:34:8d:07" : 'indoor' }
-        self.camType = self.cameras.get(ip_or_mac,'indoor')
-        self.picCmd = {'outdoor':":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=lakewould",
-                       'indoor': "/snapshot.cgi?resolution=32&user=admin&pwd=lakewould" }
-        self.url = "http://" + self.ip + self.picCmd[self.camType]
-        self.normalBrightness = 100
-        self.normalContrast = 4
-        self.brightnessCmd = {'outdoor':"http://"+self.ip+":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
-                              'indoor' : "http://"+self.ip+"/camera_control.cgi?param=1&value=" }
-        # NB: Foscam typo
-        self.contrastCmd = {'outdoor': "http://"+self.ip+":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=",
-                            'indoor':  "http://"+self.ip+"/camera_control.cgi?param=2&value=" }
-        self.userpwd = {'outdoor': "&usr=admin&pwd=lakewould",
-                        'indoor':  "&user=admin&pwd=lakewould" }
-
-        print "Using URL: " + self.url
-        self.req = urllib2.Request(self.url)
+    def __init__(self, location):
+        global settings
+        self.params = settings[location]
+        self.camType = self.params['camera']
+        self.defaultIP = self.params['defaultIP']
+        self.usbcam = None
+        if isinstance(self.params['MAC'],int) :
+            print "MAC indicates that we are using a USB camera"
+            self.usbcam = cv2.VideoCapture(self.params['MAC'])
+            self.ip = None
+        else :
+            self.ip = self.ValidIP(self.params['MAC'])
+            if (self.ip == None) :
+                print self.params['MAC'], " is not a valid IP/MAC for a Camera"
+                exit(1)
+            self.url = "http://" + self.ip + self.params['picCmd']
+            print "Using URL: " + self.url
+            self.req = urllib2.Request(self.url)
+        self.blobDet = blob.Blob(1)              # Create a blob detector for green(1) blobs
+        self.levelDet = level.Level()          # Create a level (horizontal line) detector for monochrome images
 
     def contrast(self, level):
-        self.cmdToCamera(self.contrastCmd[self.camType]+str(level)+self.userpwd[self.camType])
+        if (self.ip != None) :
+            self.cmdToCamera("http://" + self.ip + self.params['contrastCmd']+str(level)+self.params['userpwd'])
 
     def brightness(self, level):
-        self.cmdToCamera(self.brightnessCmd[self.camType]+str(level)+self.userpwd[self.camType])
+        if (self.ip != None) :
+            self.cmdToCamera("http://" + self.ip + self.params['brightnessCmd']+str(level)+self.params['userpwd'])
 
     def ValidIP(self,s):
+        """Uses regular expressions for valid MAC and IP addresses and then
+           calls arp-scan (must be on Linux and a superuser) to find IP from MAC"""
         ip = None
         part = '(2[0-4]|1[0-9]|[0-9])?[0-9]|25[0-5]'
         res =re.search(r'(^| )((%s)\.){3}(%s)' %(part,part), s,re.I )
@@ -120,11 +117,30 @@ class ipCamera(object):
         return None
  
     def grab(self):
-        try :
-            return cv2.imdecode(np.asarray(bytearray(urllib2.urlopen(self.req).read()), dtype=np.uint8), 1)
-        except urllib2.URLError, msg :
-            print msg, " Failed to get image from camera at ", self.ip
+        if (self.usbcam != None) :
+            try :
+                (rval, im1) = self.usbcam.read()
+                if (rval) :
+                    return im1
+                else :
+                    print "Usb camera read failed"
+                    return None
+            except :
+                print " Failed to grab image from USB camera"
+        else :
+            try :
+                return cv2.imdecode(np.asarray(bytearray(urllib2.urlopen(self.req).read()), dtype=np.uint8), 1)
+            except urllib2.URLError, msg :
+                print msg, " Failed to get image from camera at ", self.ip
         return None
+
+    def lagoonImage(self):
+        (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
+        image = self.grab()
+        if (image == None) :
+            print "no image from camera."
+            exit()
+        return image[x1:x2,y1:y2,:] # cropped for lagoons
 
     def cmdToCamera(self, cmd) :
         print "HTTP: " + cmd
@@ -151,7 +167,84 @@ class ipCamera(object):
         colors = {0:"blue", 1:"green", 2:"red" }
         cv2.putText(img,colors[color],(10,80),cv2.FONT_HERSHEY_PLAIN,4.0,(240,80,200),2)
 
+    def updateLevels(self) :
+        """Levels are a percentage of the lagoon height (specified at the top of this file)
+        To use mL as our standard unit of liquid level, we should add scaling param to evo.settings"""
+        global Lagoons
+        goodRead = 0
+        while (goodRead != 4) :
+            goodRead = 0
+            frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
+            for k in Lagoon.keys():
+                bb = Lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
+                subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
+                lvl = self.levelDet.level(subi)
+                if (lvl == None or lvl == 1000) :
+                    print "level detection failed"
+                if (lvl > 0 and lvl < bb[3]) : # Level is in range
+                    Levels[k] = (100 * (self.params['lagoonHeight']-lvl))/self.params['lagoonHeight']
+                    cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
+                    goodRead = goodRead + 1
+                    self.drawLagoons(frame)
+                    cv2.imshow("camera", frame)
+                    if cv.WaitKey(150) == 27:
+                        exit()
+                else :
+                    print str(lvl) + " out of range :" + str(bb)
+                    return None
+        print "Levels " + str(Levels)
+        return Levels
+
+    def updateLagoons(self) :
+        """Blob detection to locate Lagoons. Must be called before updateLevels()."""
+        frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
+        print "Frame shape:" + str(frame.shape)
+        bbs = self.blobDet.blobs(frame)    # Find the green blobs
+        sbbs = self.blobs2lagoons(bbs)     # Sort them left to right and interpret as lagoon rectangles
+        if (len(sbbs) >= 4) :         # Check to see that we have a reasonable number of lagoons
+            for i in range(4) :
+                Lagoon['Lagoon'+str(i+1)] = sbbs[i]
+                print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
+        else :
+            print "Need at least four bbs, but got " + str(len(sbbs))
+
+    def blobs2lagoons(self,bbs) :
+        """The bottom edges of identified blobs should line up.
+        These are the actual bottoms of the lagoons.  The tops will vary
+        because they represent the liquid levels, so we create a set of
+        outlines to include maxiumum fill levels.  These are the only 
+        regions of interest for our horizontal line (liquid level) detection"""
+        sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
+        lagoons = []
+        ln = 0
+        for bb in sbbs :
+            if len(lagoons) == 0 :
+                lagoons.append(bb)
+                ln = ln + 1
+            else :
+                pbb = lagoons[ln-1]
+                if bb[0] > pbb[0]+(pbb[2]/2) :
+                    lagoons.append(bb)
+                    ln = ln + 1
+        outlines = []
+        for l in lagoons:
+            outlines.append((l[0],l[1]-(self.params['lagoonHeight']-l[3]), l[2],self.params['lagoonHeight']))
+        return outlines
+
+    def drawLagoons(self, image, pause=200) :
+        global Lagoon
+        cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
+        i = 0
+        for bb in Lagoon.values():
+            cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],1)
+            cv2.circle(image,(bb[0],bb[1]),5,cler[(i+1)%4],2)
+            i = i + 1
+        cv2.imshow("camera", image)
+        if cv.WaitKey(pause) == 27:
+            return
+
     def bioBlobs(self, color, (x1,y1,x2,y2)) :
+        """Bio-luminescence detection. Sum images until MAXFRAMES and note saturation points"""
         frame = None
         while(frame == None) :
             frame = ipcam.grab()
@@ -191,7 +284,7 @@ def findBlob(image) :
         gstate = gstate + 1
         return (100,33,30,80)
 
-def drawBlobs(image,bbs) :
+def drawBBs(image,bbs) :
     cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
     i = 0
     for bb in bbs :
@@ -223,79 +316,35 @@ def findLagoons(image) :
     if cv.WaitKey(4000) == 27:
             exit()
     
-def blobs2lagoons(bbs) :
-    """The bottom edges of identified blobs should line up.
-    These are the actual bottoms of the lagoons.  The tops will vary
-    because they represent the liquid levels, so we create a set of
-    outlines to include maxiumum fill levels.  These are the only 
-    regions of interest for our horizontal line (liquid level) detection"""
-    sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
-    lagoons = []
-    ln = 0
-    for bb in sbbs :
-        if len(lagoons) == 0 :
-            lagoons.append(bb)
-            ln = ln + 1
-        else :
-            pbb = lagoons[ln-1]
-            if bb[0] > pbb[0]+(pbb[2]/2) :
-                lagoons.append(bb)
-                ln = ln + 1
-    lagoonHeight = 80
-    outlines = []
-    for l in lagoons:
-        outlines.append((l[0],l[1]-(lagoonHeight-l[3]), l[2],lagoonHeight))
-    return outlines
-                
 def setupCamera() :
-    outdoor = "00:62:6e:4f:17:d9"
-    indoor = "c4:d6:55:34:8d:07"
-    cam = ipCamera(indoor)
-    br = 200  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
-    co = 4    # 0-6 for indoor  0-100 for outdoor
-    #    br = 80  # 0-240 for indoor (ptz 905) 0-100 for outdoor (910)
-    #    co = 50    # 0-6 for indoor  0-100 for outdoor
-    cam.brightness(br)
-    cam.contrast(co)
     cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
-    cv2.moveWindow("camera", 100, 200)
+    if cv2.__dict__['moveWindow'] != None :
+        cv2.moveWindow("camera", 100, 200)
+    else :
+        print "cv2 does not contain moveWindow"
+    cam = ipCamera('usb')
+#    cam = ipCamera('museum')
+    cam.brightness(cam.params['brightness'])
+    cam.contrast(cam.params['contrast'])
     return cam
 
 
 if __name__ == "__main__" :
-    print Lagoon
-    config_in()
-    for k in Lagoon.keys():
-        print k + ": Bounding Box = " + str(Lagoon[k])
-    ipcam = setupCamera()
-    b = blob.Blob(1) # A blob detector for green(1) blobs
-    ldet = level.Level()  # A level detector for monochrome images
-    frame = ipcam.grab()
-#    findLagoons(frame)
-    (x1,y1,x2,y2) = LagoonRegion
-    frame = frame[x1:x2,y1:y2,:] # Monochrome, cropped for lagoons
-    print frame.shape
-    bbs = b.blobs(frame)
-    sbbs = blobs2lagoons(bbs)  # e.g. sorted
-    if (len(sbbs) >= 4) :
-        for i in range(4) :
-            Lagoon['Lagoon'+str(i+1)] = sbbs[i]
-            print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
-    else :
-        print "Need at least four bbs, but got " + str(len(sbbs))
-    drawBlobs(frame,sbbs)  # Show level detection regions
-    cv2.imshow("camera", frame)
-    if cv.WaitKey(6000) == 27:
+    print "Version = " + str(cv2.__version__)
+    read_settings()               # Read evo.settings
+    ipcam = setupCamera()         # Initialize Camera
+    retry = True
+    while(retry) :
+        retry = False
+        ipcam.updateLagoons()
+        for i in range(30) :
+            if ( ipcam.updateLevels() == None) :
+                print "Retrying from blob(lagoon) detection"
+                retry = True
+                break
+    print "Final Levels: " + str(Levels)
+    if cv.WaitKey(5000) == 27:
         exit()
-    for k in Lagoon.keys():
-        bb = Lagoon[k]
-        subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
-        lvl = ldet.level(subi)
-        Level[k] = lvl
-        cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),2)
-        cv2.imshow("camera", frame)
-        if cv.WaitKey(4000) == 27:
-            exit()
 
 #    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
