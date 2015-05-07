@@ -28,19 +28,37 @@ class Blob(object):
     def set_maxsize(self, maxsize) :
 	self.maxDim = maxsize
 
+    def contrast(self, image, iter=1, scale=2.0, offset=-100) :
+        for i in range(iter) :
+            img = cv2.add(cv2.multiply(image,scale),offset)
+        (ret,img) = cv2.threshold(img, 127,255,cv2.THRESH_BINARY)
+        return img
+
     def emphasis(self, img, color) :
-        """Create a monochrome image by adding twice the selected color
+        """Create a monochrome image by doubling the selected color
            and subtracting half of the other two colors added together.
            Where color is Blue (0), Green (1), or Red (2)"""
-        return cv2.subtract(img[:,:,color],
-                            cv2.add(
-                                img[:,:,(color+1)%3]/2,
-                                img[:,:,(color+2)%3]/2))
+        return cv2.subtract(cv2.multiply(img[:,:,color],2),
+                            cv2.multiply(cv2.add( img[:,:,(color+1)%3]/3,
+                                                  img[:,:,(color+2)%3]/3),0.5))
+
+    def lagoonWidth(bb) :
+        return (bb[0], bb[1], bb[2], bb[3])
 
     def blobs(self, img, pause=1000) :
         """IP cameras like 2X(Erode->Dilate->Dilate) erodeDilate(img,2,1,2)
            USB camera likes single erode->dilate cycle erodeDilate(img,1,1,1)"""
-	gray = self.erodeDilate(self.emphasis(img, self.color), 3, 1, 3)
+        print str(self.color) + " should be green 1"
+	emp = self.emphasis(img, self.color)
+        cv2.imshow("camera",emp)
+        if cv.WaitKey(pause) == 27:
+                exit()
+        con = self.contrast(emp,iter=1)
+        cv2.imshow("camera",con)
+        if cv.WaitKey(pause) == 27:
+                exit()
+	gray = self.erodeDilate(con, 1, 1, 1)
+#	gray = self.erodeDilate(self.emphasis(img, self.color), 3, 1, 3)
 #	gray = self.erodeDilate(self.emphasis(img, self.color))
 
 # Some things used in the past for different light conditions
@@ -59,15 +77,18 @@ class Blob(object):
 	for c in contours:
 		rect = cv2.boundingRect(c)
 		if rect[2] < self.minDim or rect[3] < self.minDim:
-			toosmall += 1
-#			contours.remove(c)
-			continue
+                    toosmall += 1
+#                    contours.remove(c)
+                    continue
 		elif rect[2] > self.maxDim or rect[3] > self.maxDim or rect[2] < self.minDim or rect[3] < self.minDim:
-			toolarge += 1
-#			contours.remove(c)
-			continue
+                    toolarge += 1
+#                    contours.remove(c)
+                    continue
 		else :
-			bbs.append(cv2.boundingRect(c))
+                    if (rect[2] > 50) :
+                        bbs.append((rect[0],rect[1],50,rect[3]))
+                    else :
+                        bbs.append(rect)
 
 	print ") " + str(toosmall) +  " too small " + str(toolarge) + " too large"
 # Show the selected bounding boxes in white
