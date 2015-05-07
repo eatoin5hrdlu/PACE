@@ -48,7 +48,7 @@ class ipCamera(object):
             self.url = "http://" + self.ip + self.params['picCmd']
             print "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
-        self.blobDet = blob.Blob(1)              # Create a blob detector for green(1) blobs
+        self.blobDet = blob.Blob(1,20,180)     # Create a blob detector for green(1) blobs
         self.levelDet = level.Level()          # Create a level (horizontal line) detector for monochrome images
 
     def contrast(self, level):
@@ -116,8 +116,8 @@ class ipCamera(object):
         if (image == None) :
             print "no image from camera."
             exit()
-        return image
-#        return image[x1:x2,y1:y2,:] # cropped for lagoons
+        return image[x1:x2,y1:y2,:] # cropped for lagoons
+#        return image
 
     def cmdToCamera(self, cmd) :
         print "HTTP: " + cmd
@@ -158,9 +158,6 @@ class ipCamera(object):
                 lvl = self.levelDet.level(subi)
                 if (lvl == None or lvl == 1000) :
                     print "level detection failed"
-                print lvl
-                print "level top"
-                print bb[3]
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
                     Levels[k] = (100 * (self.params['lagoonHeight']-lvl))/self.params['lagoonHeight']
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
@@ -172,21 +169,34 @@ class ipCamera(object):
                 else :
                     print str(lvl) + " out of range :" + str(bb)
                     return None
+            if (goodRead != 4) :
+                print str(goodRead) + " good level reads"
         print "Levels " + str(Levels)
         return Levels
 
     def updateLagoons(self,pause=1000) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
-        frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
-        print "Frame shape:" + str(frame.shape)
-        bbs = self.blobDet.blobs(frame,pause)    # Find the green blobs
-        sbbs = self.blobs2lagoons(bbs)     # Sort them left to right and interpret as lagoon rectangles
-        if (len(sbbs) >= 1) :         # Check to see that we have a reasonable number of lagoons
-            for i in range(1) :
-                Lagoon['Lagoon'+str(i+1)] = sbbs[i]
-                print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
-        else :
-            print "Need at least four bbs, but got " + str(len(sbbs))
+        numblobs = 0
+        while (numblobs < 4) :
+            frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
+            print "Frame shape:" + str(frame.shape)
+            bbs = self.blobDet.blobs(frame,pause)    # Find the green blobs
+            sbbs = self.blobs2lagoons(bbs)     # Sort left to right interpret as lagoon rect
+            numblobs = len(sbbs)
+            if (numblobs >= 4) :   # Check for the minimum number of lagoon outlines
+                for i in range(4) :
+                    Lagoon['Lagoon'+str(i+1)] = sbbs[i]
+                    print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
+            else :
+                print "Need at least four bbs, but got " + str(len(sbbs))
+                for bb in sbbs:
+                    cv2.rectangle(frame,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),(0,0,255),2)
+                cv2.imshow("camera",frame)
+                if cv.WaitKey(pause) == 27:
+                    exit()
+                    
+                
+
 
     def blobs2lagoons(self,bbs) :
         """The bottom edges of identified blobs should line up.
@@ -289,15 +299,19 @@ if __name__ == "__main__" :
     read_settings()               # Read evo.settings
     ipcam = setupCamera()         # Initialize Camera
     retry = True
-    (rval, img) = ipcam.usbcam.read()
-    cv2.imshow("camera",img)
-    if cv.WaitKey(5000) == 27:
-        exit()
+    (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
+    for f in range(50) :
+        (rval, img) = ipcam.usbcam.read()
+        cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
+        cv2.imshow("camera",img)
+        if cv.WaitKey(200) == 27:
+            exit()
+    print "done waiting for brightness to settle"
     while(retry) :
         retry = False
         ipcam.updateLagoons(4000) # blob contours shown for 4 seconds
         for i in range(20) :
-            if ( ipcam.updateLevels(pause=10) == None) :
+            if ( ipcam.updateLevels(pause=100) == None) :
                 print "Go back to blob detection and try again"
                 retry = True
                 break

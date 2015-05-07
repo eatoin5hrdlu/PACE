@@ -32,11 +32,13 @@ class Level(object):
     def level(self, img) :
         if (img == None) :
             print "Level detector called with invalid image"
-            print "Error recovery NYI"
-            exit()
-#        print img.shape
+            return -1
         (h,w) = img.shape
-        edges = cv2.Canny(self.contrast(self.contrast(self.contrast(img))), 90, 100)
+#        edges = cv2.Canny(self.contrast(self.contrast(self.contrast(img))), 90, 100)
+        edges = cv2.Canny(self.contrast(self.contrast(img)), 90, 100)
+        if (edges == None) :
+            print "Bad Canny output for HoughLinesP in level()"
+            return -1
         alllines = cv2.HoughLinesP(edges, 2, 3.1415926/2.0, 1, 16, 4)
         if (alllines == None) :
             print "No horizontal lines found in image"
