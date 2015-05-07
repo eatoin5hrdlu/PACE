@@ -281,6 +281,8 @@ initialise(W, Label:[name]) :->
         send(W, append(button(good),right)),
         send(W, append(button(browse),right)),
         send(W, append(button(update),right)),
+        send(W, append(button(ledon),right)),
+        send(W, append(button(ledoff),right)),
         new(@edbut, button(edit)),
         send(W, append(@edbut,right)),
 	get(W, graphicals, Chain),
@@ -362,6 +364,9 @@ ds(_)     :-> delayed_startup.
 good(_)   :-> (create_files;true),
               add_to_editor(buffon, "wrote data").
 browse(_) :-> manpce.
+
+ledon(_) :-> sendblue('l1\n').
+ledoff(_) :-> sendblue('l0\n').
 
 text_fred :- new_value( darwin, turbidity,  800),
               text_from_editor(@aristotle_editor, Text),
