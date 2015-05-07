@@ -122,5 +122,23 @@ run_external(Cmd, Stream) :-
 	open('/tmp/bpipe', read, Stream, []),
 	system('rm /tmp/bpipe').
 
-main :- start, go.
+:- load_foreign_files('plblue',[],[]), writeln('plblue.so loaded').
+
+open_all_bluetooth(SocketList) :-
+    bt_scan(BtList),
+    maplist(bt_socket, BtList, SocketList),
+    assert(blueteeth(SocketList)).
+
+sendblue(Cmd) :-
+    blueteeth([S|_]),
+    bt_converse(S,Cmd,Reply),
+    writeln(reply(Reply)).
+
+main :-
+    writeln('start test'),
+    open_all_bluetooth(List),
+    writeln(blueteeth(List)),
+    sendblue('h\n'),
+    start,
+    go.
 
