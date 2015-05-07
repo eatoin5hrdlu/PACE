@@ -12,7 +12,7 @@
 :- dynamic tt_reading/4.
 :- dynamic measurement/3. % Name, {temperature,turbidity}, Value
 :- multifile measurement/3.
-:- use_module(library('R')).
+%:- use_module(library('R')).
 :- use_module(library(apply)).
 
 %assert_list([]).
@@ -25,7 +25,7 @@
 %---------------------------------------------------------------
 %
 
-:- r_bin('C:/cygwin/R/bin/i386/Rterm.exe').
+% :- r_bin('C:/cygwin/R/bin/i386/Rterm.exe').
 
 lcd([ monitor(lcd),
       pacesize(1500, 650),
@@ -130,21 +130,6 @@ threshold(turbidity,  700, 1024, brown ).
 % WHICH MAY BE MODIFIED IF NECESSARY
 %---------------------------------------------------------------
 %
-
-showr(Name) :-
-	( current_r_session(R) -> r_close(R) ; true ),
-	r_open,
-	concat_atom(['read.csv("',Name,'.tdata",header=TRUE,sep=",")'],Read),
-	catch( r_in(d <- Read), Except, (write('['), write(Except), writeln(']'),fail) ),
-	r_print('dev.new(width=6,height=8,xpos=40,ypos=40)'),
-	r_in(par(mfrow=c(2,1))),
-	r_in( plot('d$Time','d$Turbidity',
-		   xlim=c(0,max('d$Time')),
-		   ylim=c(min('d$Turbidity')-20,max('d$Turbidity')+50)) ),
-%	r_print('dev.new(width=6,height=3.5,xpos=700,ypos=40)'),
-	r_in( plot('d$Time','d$Temperature',
-		   xlim=c(0,max('d$Time')),
-		   ylim=c(min('d$Temperature')-20,max('d$Temperature')+50)) ).
 
 
 % Ask turbidostat for ID (Okay if it isn't 'z')
@@ -599,19 +584,6 @@ auto :-	shut,
 	update_values,
 	writeln('recolor'),
 	recolor.
-
-plot_matrix :-
-	r_print('dev.new()'),
-	r_in(x<-seq(0.01,1,0.01)),
-	r_in(par(mfrow=c(3,2))),
-	r_print('plot(x, sin(x), type="l")'),
-	r_print('lines(x, log(x), type="l", col="red")'),
-	r_print('plot(x, exp(x), type="l", col="green")'),
-	r_print('lines(x, log(x), type="l", col="green")'),
-        r_print('plot(x, tan(x), type="l", lwd=3, col="yellow")'),
-	r_print('lines(x, exp(x), col="green", lwd=3)'),
-	r_print('plot(x, sin(x*x), type="l")'),
-	r_print('lines(x, sin(1/x), col="pink")').
 
 recolor :-
         color(Name, Type, _Value, Colour),
