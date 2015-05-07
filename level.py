@@ -24,14 +24,19 @@ class Level(object):
         (ret,img) = cv2.threshold(
             cv2.add(cv2.multiply(
                 cv2.add(cv2.multiply(
-                    cv2.add(cv2.multiply(image,2.0),-60)
-                    ,2.0),-60)
-                ,2.1),-100), 127,255,cv2.THRESH_BINARY)
+                    cv2.add(cv2.multiply(image,1.2),-60)
+                    ,1.4),-60)
+                ,2.1),-120), 127,255,cv2.THRESH_BINARY)
         return img
 
     def level(self, img) :
+        if (img == None) :
+            print "Level detector called with invalid image"
+            print "Error recovery NYI"
+            exit()
+#        print img.shape
         (h,w) = img.shape
-        edges = cv2.Canny(img, 90, 100)
+        edges = cv2.Canny(self.contrast(self.contrast(self.contrast(img))), 90, 100)
         alllines = cv2.HoughLinesP(edges, 2, 3.1415926/2.0, 1, 16, 4)
         if (alllines == None) :
             print "No horizontal lines found in image"

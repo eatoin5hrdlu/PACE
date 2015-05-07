@@ -32,7 +32,7 @@ class Blob(object):
         """Create a monochrome image by adding twice the selected color
            and subtracting half of the other two colors added together.
            Where color is Blue (0), Green (1), or Red (2)"""
-        return cv2.subtract(2*img[:,:,color],
+        return cv2.subtract(img[:,:,color],
                             cv2.add(
                                 img[:,:,(color+1)%3]/2,
                                 img[:,:,(color+2)%3]/2))
@@ -40,8 +40,8 @@ class Blob(object):
     def blobs(self, img, pause=1000) :
         """IP cameras like 2X(Erode->Dilate->Dilate) erodeDilate(img,2,1,2)
            USB camera likes single erode->dilate cycle erodeDilate(img,1,1,1)"""
-#	gray = self.erodeDilate(self.emphasis(img, self.color), 2, 1, 2)
-	gray = self.erodeDilate(self.emphasis(img, self.color))
+	gray = self.erodeDilate(self.emphasis(img, self.color), 3, 1, 3)
+#	gray = self.erodeDilate(self.emphasis(img, self.color))
 
 # Some things used in the past for different light conditions
 #       cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

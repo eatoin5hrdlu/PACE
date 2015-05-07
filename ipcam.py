@@ -116,7 +116,8 @@ class ipCamera(object):
         if (image == None) :
             print "no image from camera."
             exit()
-        return image[x1:x2,y1:y2,:] # cropped for lagoons
+        return image
+#        return image[x1:x2,y1:y2,:] # cropped for lagoons
 
     def cmdToCamera(self, cmd) :
         print "HTTP: " + cmd
@@ -157,6 +158,9 @@ class ipCamera(object):
                 lvl = self.levelDet.level(subi)
                 if (lvl == None or lvl == 1000) :
                     print "level detection failed"
+                print lvl
+                print "level top"
+                print bb[3]
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
                     Levels[k] = (100 * (self.params['lagoonHeight']-lvl))/self.params['lagoonHeight']
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
@@ -177,8 +181,8 @@ class ipCamera(object):
         print "Frame shape:" + str(frame.shape)
         bbs = self.blobDet.blobs(frame,pause)    # Find the green blobs
         sbbs = self.blobs2lagoons(bbs)     # Sort them left to right and interpret as lagoon rectangles
-        if (len(sbbs) >= 4) :         # Check to see that we have a reasonable number of lagoons
-            for i in range(4) :
+        if (len(sbbs) >= 1) :         # Check to see that we have a reasonable number of lagoons
+            for i in range(1) :
                 Lagoon['Lagoon'+str(i+1)] = sbbs[i]
                 print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
         else :
@@ -285,6 +289,10 @@ if __name__ == "__main__" :
     read_settings()               # Read evo.settings
     ipcam = setupCamera()         # Initialize Camera
     retry = True
+    (rval, img) = ipcam.usbcam.read()
+    cv2.imshow("camera",img)
+    if cv.WaitKey(5000) == 27:
+        exit()
     while(retry) :
         retry = False
         ipcam.updateLagoons(4000) # blob contours shown for 4 seconds
