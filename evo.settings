@@ -15,7 +15,7 @@
 
     'usb' : {
         'LagoonRegion' : (100,300,300,640),
-        'lagoonHeight' : 130,    # Can be thought of as the divisor for levelScale
+        'lagoonHeight' : 160,    # Can be thought of as the divisor for levelScale
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'indoor',
         'MAC'          : -1,
