@@ -54,6 +54,7 @@ class Blob(object):
         if cv.WaitKey(pause) == 27:
                 exit()
         con = self.contrast(emp,iter=1)
+#        con = emp
         cv2.imshow("camera",con)
         if cv.WaitKey(pause) == 27:
                 exit()

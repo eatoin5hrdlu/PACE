@@ -48,8 +48,18 @@ class ipCamera(object):
             self.url = "http://" + self.ip + self.params['picCmd']
             print "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
-        self.blobDet = blob.Blob(1,20,180)     # Create a blob detector for green(1) blobs
+        self.blobDet = blob.Blob(1,30,300)     # Create a blob detector for green(1) blobs
         self.levelDet = level.Level()          # Create a level (horizontal line) detector for monochrome images
+
+    def rotateImage(self, img, angle):
+        return(cv2.flip(cv2.transpose(img),flipCode=0))
+
+#        cv.Transpose(img,timg)
+#cv.SaveImage("rotated_clockwise.jpg", timg)
+#        center = (img.shape[1]/2.0,img.shape[0]/2.0)
+#        rotate = cv2.getRotationMatrix2D(center, angle, 1.0)
+#        rotated = cv2.warpAffine(img, rotate, (img.shape[1], img.shape[0]))
+#        return rotated
 
     def contrast(self, level):
         if (self.ip != None) :
@@ -105,9 +115,11 @@ class ipCamera(object):
                 print " Failed to grab image from USB camera"
         else :
             try :
-                return cv2.imdecode(np.asarray(bytearray(urllib2.urlopen(self.req).read()), dtype=np.uint8), 1)
+                img = cv2.imdecode(np.asarray(bytearray(urllib2.urlopen(self.req).read()), dtype=np.uint8), 1)
             except urllib2.URLError, msg :
                 print msg, " Failed to get image from camera at ", self.ip
+            if (self.params['rotate']) :
+                return self.rotateImage(img, 90)
         return None
 
     def lagoonImage(self):
@@ -177,18 +189,19 @@ class ipCamera(object):
     def updateLagoons(self,pause=1000) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         numblobs = 0
-        while (numblobs < 4) :
+        needed = 1
+        while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             print "Frame shape:" + str(frame.shape)
             bbs = self.blobDet.blobs(frame,pause)    # Find the green blobs
             sbbs = self.blobs2lagoons(bbs)     # Sort left to right interpret as lagoon rect
             numblobs = len(sbbs)
-            if (numblobs >= 4) :   # Check for the minimum number of lagoon outlines
-                for i in range(4) :
+            if (numblobs >= needed) :   # Check for the minimum number of lagoon outlines
+                for i in range(1) :
                     Lagoon['Lagoon'+str(i+1)] = sbbs[i]
                     print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
             else :
-                print "Need at least four bbs, but got " + str(len(sbbs))
+                print "Need at least " + str(needed) + " bbs, but got " + str(len(sbbs))
                 for bb in sbbs:
                     cv2.rectangle(frame,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),(0,0,255),2)
                 cv2.imshow("camera",frame)
@@ -282,29 +295,33 @@ def read_settings():
     settings = eval(f.read())
     f.close()
 
-def setupCamera() :
+def setupCamera(setup) :
     cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
     if cv2.__dict__['moveWindow'] != None :
         cv2.moveWindow("camera", 100, 200)
     else :
         print "cv2 does not contain moveWindow. Update your OpenCV installation."
-    cam = ipCamera('usb')
-#   cam = ipCamera('museum')
+    cam = ipCamera(setup)
     cam.brightness(cam.params['brightness'])
     cam.contrast(cam.params['contrast'])
     return cam
 
 if __name__ == "__main__" :
     print "OpenCV version = " + str(cv2.__version__)
-    read_settings()               # Read evo.settings
-    ipcam = setupCamera()         # Initialize Camera
+    read_settings()                   # Read evo.settings
+# 'splatspace'  Wired outdoor camera
+# 'splatwifi'   Wireless outdoor camera
+# 'usb'         Any USB camera
+# 'musuem'      Wired indoor PTZ camera
+# 'sandstone'   Wireless outdoor camera (home ssid: milton)
+    ipcam = setupCamera('splatspace')  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
     retry = True
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
-    for f in range(50) :
-        (rval, img) = ipcam.usbcam.read()
+    for f in range(15) :
+        img = ipcam.grab()
         cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
         cv2.imshow("camera",img)
-        if cv.WaitKey(200) == 27:
+        if cv.WaitKey(50) == 27:
             exit()
     print "done waiting for brightness to settle"
     while(retry) :

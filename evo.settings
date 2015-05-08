@@ -4,6 +4,7 @@
         'lagoonHeight' : 80,    # Can be thought of as the divisor for levelScale
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'indoor',
+        'rotate'       : None,
         'MAC'          : "c4:d6:55:34:8d:07",
         'defaultIP'    : "172.16.3.165",
         'userpwd'      :  "&user=admin&pwd=lakewould",
@@ -18,6 +19,7 @@
         'lagoonHeight' : 160,    # Can be thought of as the divisor for levelScale
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'indoor',
+        'rotate'       : None,
         'MAC'          : -1,
         'defaultIP'    : -1,
         'userpwd'      :  "&user=admin&pwd=lakewould",
@@ -28,13 +30,29 @@
         'picCmd'       : "/snapshot.cgi?resolution=32&user=admin&pwd=lakewould" },
 
     'splatspace' : {
+        'LagoonRegion' : (540,10,900,710),
+        'lagoonHeight' : 310,
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'outdoor',
+        'rotate'       : 90,
+        'MAC'          : "00:62:6e:4f:17:d9",
+        'userpwd'      : "&usr=admin&pwd=lakewould",
+        'defaultIP'    : "192.168.2.110",
+        'brightness'   :  5,   # 0-100 for outdoor camera
+        'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
+        'contrast'     :  30,   # 0-100 for outdoor camera
+        'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
+        'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=lakewould"
+   },
+    'splatwifi' : {
         'LagoonRegion' : (300,0,480,260),
         'lagoonHeight' : 80,
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'outdoor',
-        'MAC'          : "00:62:6e:4f:17:d9",
+        'rotate'       : 90,
+        'MAC'          : "E8:AB:FA:OF:AB:77",
         'userpwd'      : "&usr=admin&pwd=lakewould",
-        'defaultIP'    : "172.16.3.164",
+        'defaultIP'    : "192.168.2.110",
         'brightness'   :  80,   # 0-100 for outdoor camera
         'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
         'contrast'     :  50,   # 0-100 for outdoor camera
@@ -46,6 +64,7 @@
         'lagoonHeight' : 80,
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'outdoor',
+        'rotate'       : 90,
         'MAC'          : "00:62:6e:4f:17:d9",
         'userpwd'      : "&usr=admin&pwd=lakewould",
         'defaultIP'    : "192.168.254.26",

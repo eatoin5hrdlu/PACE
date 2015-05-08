@@ -20,22 +20,24 @@ class Level(object):
         rotated = cv2.warpAffine(img, rotate, (img.shape[1], img.shape[0]))
         return rotated
 
-    def contrast(self, image) :
-        (ret,img) = cv2.threshold(
-            cv2.add(cv2.multiply(
-                cv2.add(cv2.multiply(
-                    cv2.add(cv2.multiply(image,1.2),-60)
-                    ,1.4),-60)
-                ,2.1),-120), 127,255,cv2.THRESH_BINARY)
+    def contrast(self, image, iter=1, scale=2.0, offset=-100) :
+        for i in range(iter) :
+            image = cv2.add(cv2.multiply(image,scale),offset)
+        (ret,img) = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
+        # ret value is threshold (127.0) not True - False
         return img
+
 
     def level(self, img) :
         if (img == None) :
             print "Level detector called with invalid image"
             return -1
         (h,w) = img.shape
-#        edges = cv2.Canny(self.contrast(self.contrast(self.contrast(img))), 90, 100)
-        edges = cv2.Canny(self.contrast(self.contrast(img)), 90, 100)
+        img = self.contrast(img)
+        if (img==None) :
+            print "Contrast returned None"
+            return -1
+        edges = cv2.Canny(img, 90, 100)
         if (edges == None) :
             print "Bad Canny output for HoughLinesP in level()"
             return -1
