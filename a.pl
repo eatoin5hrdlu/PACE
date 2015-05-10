@@ -266,8 +266,8 @@ initialise(W, Label:[name]) :->
         send(W, append(button(good),right)),
         send(W, append(button(browse),right)),
         send(W, append(button(update),right)),
-        send(W, append(button(ledon),right)),
-        send(W, append(button(ledoff),right)),
+        send(W, append(button(pump1on),right)),
+        send(W, append(button(pump1off),right)),
         new(@edbut, button(edit)),
         send(W, append(@edbut,right)),
 	get(W, graphicals, Chain),
@@ -350,8 +350,13 @@ good(_)   :-> (create_files;true),
               add_to_editor(buffon, "wrote data").
 browse(_) :-> manpce.
 
-ledon(_) :-> sendblue('l1\n').
-ledoff(_) :-> sendblue('l0\n').
+pump1on(_) :-> talkblue('p11\n').
+pump1off(_) :-> talkblue('p10\n').
+
+talkblue(Cmd) :-
+    blueteeth([S|_]),
+    bt_converse(S,Cmd, Reply),
+    add_to_editor(buffon, Reply).
 
 text_fred :- new_value( darwin, turbidity,  800),
               text_from_editor(@aristotle_editor, Text),

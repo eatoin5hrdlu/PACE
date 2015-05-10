@@ -122,7 +122,7 @@ run_external(Cmd, Stream) :-
 	open('/tmp/bpipe', read, Stream, []),
 	system('rm /tmp/bpipe').
 
-:- load_foreign_files('plblue',[],[]), writeln('plblue.so loaded').
+:- load_foreign_library(plblue), writeln('plblue (BLUETOOTH) loaded').
 
 open_all_bluetooth(SocketList) :-
     bt_scan(BtList),
