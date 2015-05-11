@@ -159,6 +159,28 @@ getID(In, Out, ID) :- % Needs restore(reset)
 
 sturb(Name) :-  send(@tmenu,selection,Name).
 
+
+evoconnect(Setup) :-
+        ( current_prolog_flag(windows,true)
+	-> Python = 'C:/cygwin/Python27/python.exe',
+            Filter = 'C:/cygwin/home/peter/src/PACE/ipcam.py',
+           Cwd = 'C:\\cygwin\\home\\peter\\src\\PACE'
+        ;  Python = '/usr/bin/python',
+           Filter = '/home/peter/src/PACE/ipcam.py',
+           Cwd = '/home/peter/src/PACE'
+        ),
+        add_to_editor(buffon,"Connecting..."),
+        add_to_editor(buffon,"\n"),
+        process_create(Python,
+		       [ '-u', Filter ],
+		       [ stdin(pipe(In)), stdout(pipe(Out)), cwd(Cwd), process(PID)]),
+        set_stream(In, buffer(false)),
+	format(In, '~a~n', [Setup]), % Tell Python which configuration
+        sleep(1),
+	read(Out, Reply),
+	Reply = online(Setup),
+	assert(camera(In,Out,PID)).
+
 id :-
         ( current_prolog_flag(windows,true)
 	-> Python = 'C:/cygwin/Python27/python.exe',
