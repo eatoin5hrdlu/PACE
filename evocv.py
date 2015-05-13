@@ -3,18 +3,29 @@ import numpy as np
 import cv2
 import cv2.cv as cv
 
-class EvoCV(object):
-    """Single-color emphasis (default green),
-       parameterized contrast, and erode/dilate,
-       blob detection, 
-       horizontal line detection (e.g. liquid level)"""
- 
-    def __init__(self, color=1, minsize=24, maxsize=160, debug=True):
+class EvoCv(object):
+    """Utilities for EvoStat visual feedback
+    Status images for Web access:
+           Normal lighting
+           Meniscus lighting
+           Dark (bio-luminescence)
+       Liquid Level Detection:
+           Blob detection,
+              Single-color emphasis (default green),
+              Camera Settings,
+              Parameterized cycles of Contrast, Erode, Dilation
+           Lagoon Outlines
+           Horizontal line (liquid level) detection
+       BioLuminescence:
+           Multiple Image addition: Sum(Green - (Blue+Red)/2)
+           Saturation detection"""
+
+    def __init__(self, color=1, minsize=24, maxsize=160):
         """Optional color, and min/max dimension setting"""
 	self.color = color   # default color of interest is Green
+        self.maxWidth = 30   # All lagoon areas will be reduced to a strip this wide
 	self.minDim = minsize
 	self.maxDim = maxsize
-        self.debug = debug
         self.kernal = np.ones((5,5),np.uint8)
         self.alpha   = np.array([  1.2 ])
         self.beta    = np.array([ -60 ])
@@ -35,7 +46,7 @@ class EvoCV(object):
 	self.maxDim = maxsize
 
     def rotateImage(self, img, angle=90):
-        """+-90 degree rotations are fast and do not crop"""
+        """+-90 degree rotations are fast and dont crop"""
         if (angle == 90) :
             return(cv2.flip(cv2.transpose(img),flipCode=0))
         elif (angle == -90) :
@@ -52,20 +63,21 @@ class EvoCV(object):
         # ret value is threshold (127.0) not True - False
         return img
 
-    def emphasis(self, img, scale=2, fraction=3) :
+    def emphasis(self, img, scale=2, fraction=0.5) :
         """Return monochrome image with doubled(scale) selected color
            minus half of the other two colors(/fraction) added together.
            Where color is Blue (0), Green (1-default), or Red (2)"""
         return cv2.subtract(cv2.multiply(img[:,:,self.color],scale),
-                            cv2.multiply(cv2.add( img[:,:,(self.color+1)%3]/fraction,
-                                                  img[:,:,(self.color+2)%3]/fraction),0.5))
-    def showUser(self, image, pause=1000) :
-        if (self.debug) :
+                            cv2.multiply(cv2.add( img[:,:,(self.color+1)%3],
+                                                  img[:,:,(self.color+2)%3]),fraction))
+    
+    def showUser(self, image, pause=0) :
+        if (pause != 0) :
             cv2.imshow("camera",image)
             if cv.WaitKey(pause) == 27:
                 exit()
 
-    def level(self, img) :
+    def level(self, img, pause=0) :
         """Return the uppermost horizontal line in the image (e.g. liquid level)
            Returns:   -1 when there is a problem with the data
                     1000 when there is no line within proper range"""
@@ -93,19 +105,19 @@ class EvoCV(object):
                         topline = l[1]
         return topline
 
-    def blobs(self, img, pause=1000) :
+    def blobs(self, img, pause=0) :
         """IP cameras like 2X(Erode->Dilate->Dilate) erodeDilate(img,2,1,2)
            USB camera likes single erode->dilate cycle erodeDilate(img,1,1,1)
            TODO: Automate variation of these parameters to get a good reading"""
 	emp = self.emphasis(img)
-        self.showUser(emp)
+        self.showUser(emp,pause)
         con = self.contrast(emp,iter=1)
-        self.showUser(con)
+        self.showUser(con,pause)
 	gray = self.erodeDilate(con, 1, 1, 1)
 	gray2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
-        self.showUser(gray2)
+        self.showUser(gray2,pause)
         contours, _ = cv2.findContours(gray2, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-	if (self.debug) :
+	if (pause != 0) :
             print str(len(contours)) + " contours ( ",
         toosmall = 0
         toolarge = 0
@@ -115,21 +127,23 @@ class EvoCV(object):
 		if rect[2] < self.minDim or rect[3] < self.minDim:
                     toosmall += 1
                     continue
-		elif rect[2] > self.maxDim or rect[3] > self.maxDim or rect[2] < self.minDim or rect[3] < self.minDim:
+		elif    rect[2]>self.maxDim or rect[3]>self.maxDim or rect[2]<self.minDim or rect[3]<self.minDim:
                     toolarge += 1
                     continue
 		else :
-                    if (rect[2] > 50) :
-                        bbs.append((rect[0],rect[1],50,rect[3]))
+                    if (rect[2] > self.maxWidth) :  # Limit width and center
+                        print "too wide"
+                        margin = (rect[2]-self.maxWidth)/2
+                        bbs.append((margin+rect[0],rect[1],self.maxWidth,rect[3]))
                     else :
                         bbs.append(rect)
 
-        if (self.debug) :
-            print ") " + str(toosmall) +  " too small " + str(toolarge) + " too large"
+        if (pause != 0) :
+            print ") "+str(toosmall)+" too small "+str(toolarge)+" too large"
             pen = (255,255,255) # White
             for r in bbs:
                 cv2.rectangle(img,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),pen,2)
-            self.showUser(img)
+            self.showUser(img,pause)
 	return bbs
 
 

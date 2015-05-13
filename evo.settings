@@ -1,6 +1,6 @@
 {
     'museum' : {
-        'LagoonRegion' : (300,0,480,260),
+        'LagoonRegion' : (330,0,480,210),
         'lagoonHeight' : 80,    # Can be thought of as the divisor for levelScale
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'indoor',

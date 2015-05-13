@@ -1,18 +1,16 @@
-#!/usr/bin/python -u
+#!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
-import os, time, subprocess, re
+#!/usr/bin/python -u
+import sys, os, time, subprocess, re
 import base64, urllib2
  
 import numpy as np
 import cv2
 import cv2.cv as cv
+import evocv
 
-#LagoonRegion = (300,0,480,260)
-lagoonHeight = 80
 Lagoon = {}
 Levels = {}
-
-configFile = "evo.settings"
 
 #
 # IPCamera knows about different IP cameras (as well as USB cams) and
@@ -24,11 +22,10 @@ configFile = "evo.settings"
 # Blob detection module ( find lagoon/cellstat coordinates)
 # import ipcam, fluor, blob, level
 
-import blob, level
-
 class ipCamera(object):
-    """Color can be Blue=0, Green=1, or Red=2 (openCV => BGR, not RGB)
-       Image represents integration of [ selected color - 1/2(unselected colors) ]"""
+    """USB, Wired Ethernet or WiFi IP camera discovery and control.
+       This object contain the configuration information and knows about
+       lagoon dimensions, lighting, angle of camera, etc."""
 
     def __init__(self, location):
         global settings
@@ -48,8 +45,7 @@ class ipCamera(object):
             self.url = "http://" + self.ip + self.params['picCmd']
             print "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
-        self.blobDet = blob.Blob(1,30,300)     # Create a blob detector for green(1) blobs
-        self.levelDet = level.Level()          # Create a level (horizontal line) detector for monochrome images
+        self.evocv  = evocv.EvoCv(1,30,300)  # Detection of green(1) blobs 30-300 pixels wide
 
     def rotateImage(self, img, angle):
         return(cv2.flip(cv2.transpose(img),flipCode=0))
@@ -115,7 +111,22 @@ class ipCamera(object):
                 print " Failed to grab image from USB camera"
         else :
             try :
-                img = cv2.imdecode(np.asarray(bytearray(urllib2.urlopen(self.req).read()), dtype=np.uint8), 1)
+                img1 = urllib2.urlopen(self.req).read()
+                if (img1 == None) :
+                    print "urlopen->read failed"
+                else :
+                    print "okay"
+                img2 = bytearray(img1)
+                if (img2 == None) :
+                    print "bytearray failed"
+                else :
+                    print "okay"
+                img3 = np.asarray(img2, dtype=np.uint8)
+                if (img3 == None) :
+                    print "numpy conversion failed"
+                else :
+                    print "okay"
+                return(cv2.imdecode(img3, 1))
             except urllib2.URLError, msg :
                 print msg, " Failed to get image from camera at ", self.ip
             if (self.params['rotate']) :
@@ -159,7 +170,7 @@ class ipCamera(object):
     def updateLevels(self,pause=1000) :
         """Levels are a percentage of the lagoon height (specified at the top of this file)
         To use mL as our standard unit of liquid level, we should add scaling param to evo.settings"""
-        global Lagoons
+        global Lagoon
         goodRead = 0
         while (goodRead != 4) :
             goodRead = 0
@@ -167,7 +178,7 @@ class ipCamera(object):
             for k in Lagoon.keys():
                 bb = Lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
-                lvl = self.levelDet.level(subi)
+                lvl = self.evocv.level(subi)
                 if (lvl == None or lvl == 1000) :
                     print "level detection failed"
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
@@ -193,7 +204,7 @@ class ipCamera(object):
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             print "Frame shape:" + str(frame.shape)
-            bbs = self.blobDet.blobs(frame,pause)    # Find the green blobs
+            bbs = self.evocv.blobs(frame,pause)    # Find the green blobs
             sbbs = self.blobs2lagoons(bbs)     # Sort left to right interpret as lagoon rect
             numblobs = len(sbbs)
             if (numblobs >= needed) :   # Check for the minimum number of lagoon outlines
@@ -208,9 +219,6 @@ class ipCamera(object):
                 if cv.WaitKey(pause) == 27:
                     exit()
                     
-                
-
-
     def blobs2lagoons(self,bbs) :
         """The bottom edges of identified blobs should line up.
         These are the actual bottoms of the lagoons.  The tops will vary
@@ -283,15 +291,16 @@ class ipCamera(object):
 
 # End of ipCamera Class
 
-def write_settings():
+
+def write_settings(cFile):
     global settings
-    f = open(configFile, 'w')
+    f = open(cFile, 'w')
     f.write(str(settings))
     f.close()
 
-def read_settings():
+def read_settings(cFile):
     global settings
-    f = open(configFile, 'r')
+    f = open(cFile, 'r')
     settings = eval(f.read())
     f.close()
 
@@ -306,22 +315,34 @@ def setupCamera(setup) :
     cam.contrast(cam.params['contrast'])
     return cam
 
-if __name__ == "__main__" :
-    print "OpenCV version = " + str(cv2.__version__)
-    read_settings()                   # Read evo.settings
+# Rather than a command line argument, process reads one line from stdin to identify configuration
 # 'splatspace'  Wired outdoor camera
 # 'splatwifi'   Wireless outdoor camera
 # 'usb'         Any USB camera
 # 'musuem'      Wired indoor PTZ camera
 # 'sandstone'   Wireless outdoor camera (home ssid: milton)
-    ipcam = setupCamera('splatspace')  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
+
+configFile = "evo.settings"
+
+if __name__ == "__main__" :
+    print "openCV('" + str(cv2.__version__) + "')."
+    read_settings(configFile)
+    config = sys.stdin.readline()[:-1]
+    if not(config in settings.keys()) :
+        print "fail('"+config+" not in " + configFile +"')."
+        exit()
+    ipcam = setupCamera(config)  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
     retry = True
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
     for f in range(15) :
         img = ipcam.grab()
-        cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
-        cv2.imshow("camera",img)
-        if cv.WaitKey(50) == 27:
+        if (img != None) :
+            cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
+            cv2.imshow("camera",img)
+            if cv.WaitKey(200) == 27:
+                exit()
+        else:
+            print "Image grab returned None in __main__"
             exit()
     print "done waiting for brightness to settle"
     while(retry) :
