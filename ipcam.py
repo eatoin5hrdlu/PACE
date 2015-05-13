@@ -114,18 +114,12 @@ class ipCamera(object):
                 img1 = urllib2.urlopen(self.req).read()
                 if (img1 == None) :
                     print "urlopen->read failed"
-                else :
-                    print "okay"
                 img2 = bytearray(img1)
                 if (img2 == None) :
                     print "bytearray failed"
-                else :
-                    print "okay"
                 img3 = np.asarray(img2, dtype=np.uint8)
                 if (img3 == None) :
                     print "numpy conversion failed"
-                else :
-                    print "okay"
                 return(cv2.imdecode(img3, 1))
             except urllib2.URLError, msg :
                 print msg, " Failed to get image from camera at ", self.ip
@@ -200,15 +194,16 @@ class ipCamera(object):
     def updateLagoons(self,pause=1000) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         numblobs = 0
-        needed = 1
+        needed = 4
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             print "Frame shape:" + str(frame.shape)
             bbs = self.evocv.blobs(frame,pause)    # Find the green blobs
             sbbs = self.blobs2lagoons(bbs)     # Sort left to right interpret as lagoon rect
             numblobs = len(sbbs)
+            print "blobs2lagoons returned " +str(numblobs)
             if (numblobs >= needed) :   # Check for the minimum number of lagoon outlines
-                for i in range(1) :
+                for i in range(needed) :
                     Lagoon['Lagoon'+str(i+1)] = sbbs[i]
                     print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
             else :
@@ -234,9 +229,11 @@ class ipCamera(object):
                 ln = ln + 1
             else :
                 pbb = lagoons[ln-1]
-                if bb[0] > pbb[0]+(pbb[2]/2) :
+                if bb[0] > (pbb[0]+pbb[2]) :
                     lagoons.append(bb)
                     ln = ln + 1
+                else:
+                    print str(bb) + " not added to lagoon list"
         outlines = []
         for l in lagoons:
             outlines.append((l[0],l[1]-(self.params['lagoonHeight']-l[3]), l[2],self.params['lagoonHeight']))
@@ -323,14 +320,15 @@ def setupCamera(setup) :
 # 'sandstone'   Wireless outdoor camera (home ssid: milton)
 
 configFile = "evo.settings"
+defaultConfig = 'museum'
 
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
     read_settings(configFile)
     config = sys.stdin.readline()[:-1]
     if not(config in settings.keys()) :
-        print "fail('"+config+" not in " + configFile +"')."
-        exit()
+        config = defaultConfig
+        print "Using " + config + " configuration"
     ipcam = setupCamera(config)  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
     retry = True
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
