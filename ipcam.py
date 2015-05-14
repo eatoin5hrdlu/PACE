@@ -1,6 +1,6 @@
+#!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
-#!/usr/bin/python -u
 import sys, os, time, subprocess, re
 import base64, urllib2
  
@@ -194,7 +194,7 @@ class ipCamera(object):
     def updateLagoons(self,pause=1000) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         numblobs = 0
-        needed = 4
+        needed = 2
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             print "Frame shape:" + str(frame.shape)
@@ -320,7 +320,8 @@ def setupCamera(setup) :
 # 'sandstone'   Wireless outdoor camera (home ssid: milton)
 
 configFile = "evo.settings"
-defaultConfig = 'museum'
+#defaultConfig = 'museum'
+defaultConfig = 'usb'
 
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
