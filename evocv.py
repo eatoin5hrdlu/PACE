@@ -23,7 +23,7 @@ class EvoCv(object):
     def __init__(self, color=1, minsize=24, maxsize=160):
         """Optional color, and min/max dimension setting"""
 	self.color = color   # default color of interest is Green
-        self.maxWidth = 30   # All lagoon areas will be reduced to a strip this wide
+        self.maxWidth = 60   # All lagoon areas will be reduced to a strip this wide
 	self.minDim = minsize
 	self.maxDim = maxsize
         self.kernal = np.ones((5,5),np.uint8)
@@ -57,9 +57,19 @@ class EvoCv(object):
             return cv2.warpAffine(img, rotate, (img.shape[1], img.shape[0]))
 
     def contrast(self, image, iter=1, scale=2.0, offset=-100) :
+        if (image == None) :
+            print "contrast called with null Image"
         for i in range(iter) :
-            image = cv2.add(cv2.multiply(image,scale),offset)
+            if (image == None) :
+                print "contrast loop: Image is None"
+            else :
+                image = cv2.add(cv2.multiply(image,scale),offset)
+        self.showUser(image,4000)
         (ret,img) = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
+        self.showUser(img,1000)
+        if (ret == False) :
+            print "Thresholding failed?"
+            return None
         # ret value is threshold (127.0) not True - False
         return img
 
@@ -136,6 +146,7 @@ class EvoCv(object):
                         margin = (rect[2]-self.maxWidth)/2
                         bbs.append((margin+rect[0],rect[1],self.maxWidth,rect[3]))
                     else :
+                        print "SIZE OKAY   " + str(rect)
                         bbs.append(rect)
 
         if (pause != 0) :

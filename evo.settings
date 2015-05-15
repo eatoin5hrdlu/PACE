@@ -31,14 +31,14 @@
 
     'splatspace' : {
         'LagoonRegion' : (540,10,900,710),
-        'lagoonHeight' : 310,
+        'lagoonHeight' : 150,
         'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
         'camera'       : 'outdoor',
         'rotate'       : 90,
         'MAC'          : "00:62:6e:4f:17:d9",
         'userpwd'      : "&usr=admin&pwd=lakewould",
         'defaultIP'    : "192.168.2.110",
-        'brightness'   :  5,   # 0-100 for outdoor camera
+        'brightness'   :  30,   # 0-100 for outdoor camera
         'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
         'contrast'     :  30,   # 0-100 for outdoor camera
         'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
