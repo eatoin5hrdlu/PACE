@@ -1,6 +1,6 @@
+#!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
-#!/usr/bin/python -u
 import sys, os, time, subprocess, re
 import base64, urllib2
  
@@ -114,17 +114,19 @@ class ipCamera(object):
                 img1 = urllib2.urlopen(self.req).read()
                 if (img1 == None) :
                     print "urlopen->read failed"
-                img2 = bytearray(img1)
-                if (img2 == None) :
+                img1 = bytearray(img1)
+                if (img1 == None) :
                     print "bytearray failed"
-                img3 = np.asarray(img2, dtype=np.uint8)
-                if (img3 == None) :
+                img1 = np.asarray(img1, dtype=np.uint8)
+                if (img1 == None) :
                     print "numpy conversion failed"
-                return(cv2.imdecode(img3, 1))
             except urllib2.URLError, msg :
                 print msg, " Failed to get image from camera at ", self.ip
+
             if (self.params['rotate']) :
-                return self.rotateImage(img, 90)
+                return self.rotateImage(cv2.imdecode(img1,1), self.params['rotate'])
+            else :
+                return(cv2.imdecode(img3, 1))
         return None
 
     def lagoonImage(self):
@@ -172,6 +174,7 @@ class ipCamera(object):
             for k in Lagoon.keys():
                 bb = Lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
+                print "SHAPE " + str(subi.shape)
                 lvl = self.evocv.level(subi)
                 if (lvl == None or lvl == 1000) :
                     print "level detection failed"
@@ -194,7 +197,7 @@ class ipCamera(object):
     def updateLagoons(self,pause=1000) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         numblobs = 0
-        needed = 4
+        needed = 2
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             print "Frame shape:" + str(frame.shape)
@@ -320,7 +323,9 @@ def setupCamera(setup) :
 # 'sandstone'   Wireless outdoor camera (home ssid: milton)
 
 configFile = "evo.settings"
-defaultConfig = 'museum'
+#defaultConfig = 'museum'
+#defaultConfig = 'usb'
+defaultConfig = 'splatspace'
 
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
@@ -332,12 +337,12 @@ if __name__ == "__main__" :
     ipcam = setupCamera(config)  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
     retry = True
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
-    for f in range(15) :
+    for f in range(10) :
         img = ipcam.grab()
         if (img != None) :
             cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
             cv2.imshow("camera",img)
-            if cv.WaitKey(200) == 27:
+            if cv.WaitKey(100) == 27:
                 exit()
         else:
             print "Image grab returned None in __main__"
@@ -345,7 +350,7 @@ if __name__ == "__main__" :
     print "done waiting for brightness to settle"
     while(retry) :
         retry = False
-        ipcam.updateLagoons(4000) # blob contours shown for 4 seconds
+        ipcam.updateLagoons() # blob contours shown for 4 seconds
         for i in range(20) :
             if ( ipcam.updateLevels(pause=100) == None) :
                 print "Go back to blob detection and try again"

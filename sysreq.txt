@@ -1,0 +1,35 @@
+OpenCV on linux machines. Best to build from scratch to get the latest (or a very specific) version.
+
+Pre-requisites for building:
+
+sudo apt-get -y install build-essential cmake cmake-qt-gui pkg-config libpng12-0 libpng12-dev libpng++-dev libpng3 libpnglite-dev zlib1g-dbg zlib1g zlib1g-dev pngtools libtiff4-dev libtiff4 libtiffxx0c2 libtiff-tools
+
+sudo apt-get -y install libjpeg8 libjpeg8-dev libjpeg8-dbg libjpeg-progs ffmpeg libavcodec-dev libavcodec53 libavformat53 libavformat-dev libgstreamer0.10-0-dbg libgstreamer0.10-0 libgstreamer0.10-dev libxine1-ffmpeg libxine-dev libxine1-bin libunicap2 libunicap2-dev libdc1394-22-dev libdc1394-22 libdc1394-utils swig libv4l-0 libv4l-dev python-numpy libpython2.6 python-dev python2.6-dev libgtk2.0-dev pkg-config
+
+wget http://sourceforge.net/projects/opencvlibrary/files/opencv-unix/2.4.10/opencv-2.4.10.zip/download
+
+tar -xvjpf download
+
+(or whatever name it has on your machine)
+
+cd OpenCV-2.4.10/
+mkdir build
+cd build
+
+And, now we are ready to build! Or not. Yeah, we aren’t ready at all. We need to run CMake and see what is says. Here is now a difference to the other guides I found – we need to replace BUILD_PYTHON_SUPPORT with BUILD_NEW_PYTHON_SUPPORT. Run:
+
+cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D BUILD_NEW_PYTHON_SUPPORT=ON -D BUILD_EXAMPLES=ON ..
+
+make
+
+make install
+
+Start your desktop environment. Open up the Terminal and go to OpenCV-2.4.2/samples/python. Run a sample:
+
+python drawing.py
+
+More recent list of pre-requisites:
+
+sudo apt-get install build-essential
+sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
+sudo apt-get install python-dev python-numpy libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libjasper-dev libdc1394-22-dev
