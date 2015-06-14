@@ -4,7 +4,7 @@
 #define RESTORE	0
 
 #define ANALOG_TEMPERATURE   0 // Analog input for temperature
-#define ANALOG_TURBIDITY     2 // Analog input for turbidity
+#define ANALOG_TURBIDITY     3 // Analog input for turbidity
 
 #define LED             8     // Meniscus light
 #define LASER           7     // Meniscus light

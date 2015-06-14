@@ -1,7 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
 Adafruit_MLX90614 mlx;
-
+// #define DEBUG 1
 #define EOT "end_of_data"
 /*
  * Host controller
@@ -40,7 +40,8 @@ Adafruit_MLX90614 mlx;
 #include "temperature.h" 
 
 VALVES valves = VALVES(1);
-TEMPERATURE temp = TEMPERATURE(0);
+// TEMPERATURE temp = TEMPERATURE(0);  // Analog pin number
+TEMPERATURE temp = TEMPERATURE(A5,A4);  // Digital pins SCL, SDA
 
 boolean auto_temp;   // Automatically control Heater
 boolean auto_valve;  // Automatically control Valves
@@ -53,6 +54,7 @@ int RomAddress  = 0;
 
 byte id = 'z'; // Zeno = unassigned, by default
 float target_temperature;
+float target_turbidity;
 int interval;   // Variable to keep track of the time
 
 int reading[10];
@@ -63,12 +65,18 @@ void checkTemperature()
 {
 float t = temp.celcius();
 	if (t < target_temperature) {
-//		Serial.println("Temperature is low");
+#ifdef DEBUG
+		Serial.println(t);
+		Serial.println("Temperature is low");
+#endif
 	        digitalWrite(HEATER,1);
 	}
 	if (t > target_temperature + 0.25) {
 		digitalWrite(HEATER,0);
-//		Serial.println("Temperature is high");
+#ifdef DEBUG
+		Serial.println(t);
+		Serial.println("Temperature is high");
+#endif
 	}
 }
 
@@ -94,6 +102,7 @@ void saveRestore(int op)
 	moveData(op, 1, &id);
 	moveData(op, sizeof(float), (byte *) &target_temperature);
 	moveData(op, MAX_VALVES*sizeof(int), (byte *) valves.getTimes());
+	moveData(op, sizeof(float), (byte *) &target_turbidity);
 }
 #endif
 
@@ -119,17 +128,54 @@ void printHelp(void)
 	Serial.println("r:  Normal Run mode");
 }
 
+int turbread[10];
+int turbindex = 0;
+
+double ODhist[10];
+int ODhindex = 0;
+
+#define TURB_DELAY 10
+int turbdelay = 0;
+
 double turbidity() {
+int i;
+double total = 0.0;
+	for (i=0;i<10;i++) {
+		total += ODhist[i];
+		Serial.println(total);
+	}
+	return total/10.0;
+}
+
+int checkTurbidity() {
+int highlow = 0;
+int i, t, avg;
+double OD;
 	digitalWrite(LASER,1);
-	delay(500);
-	int turbi = analogRead(ANALOG_TURBIDITY);
-	Serial.println(ANALOG_TURBIDITY);
-	Serial.println(turbi);
-	if (turbi > 114) turbi -= 114;
-	else turbi = 0;
-	Serial.println(turbi);
+	delay(100);
+// Read Turbidity and bump the ReadArray index
+	turbread[turbindex] = analogRead(ANALOG_TURBIDITY);
 	digitalWrite(LASER,0);
-	return ((double) turbi / 910.0);
+	turbindex = (turbindex+1)%10;
+
+// Average the last ten values and bump the delay index
+	avg = 0;
+	for (i=0;i<10;i++) avg += turbread[i];
+	OD = ((double) avg / 9100.0);
+	turbdelay = (turbdelay+1)%TURB_DELAY;
+// After a certain delay, store the average Optical Density
+	if (turbdelay == 0) {
+		ODhist[ODhindex] = OD;
+		ODhindex = (ODhindex+1)%10;
+	}
+// Unanimous vote of last ten delayed averages up or down
+	t = 0;
+	for(i=0;i<10;i++) {
+		if (ODhist[i] > target_turbidity) t++;
+		if (ODhist[i] < target_turbidity) t--;
+	}
+	// High or Low Turbidity must be unanimous
+	return (t/10);  // -1, 0, +1 
 }
 
 void mixer(byte v)
@@ -204,8 +250,7 @@ byte d;
 			saveRestore(RESTORE);
 			break;
 		case 's':
-			saveRestore(SAVE);		Serial.println("okay");	
-
+			saveRestore(SAVE);
 			break;
 		case 't':
 			Serial.println(temp.celcius());
@@ -315,6 +360,7 @@ void setup()
 		valves.setTime('2',3000);
 		valves.setTime('3',1000);
 		valves.setTime('4',0);
+		target_turbidity = 0.4;
 		saveRestore(SAVE);
 	}
 	else
@@ -322,7 +368,9 @@ void setup()
 		saveRestore(RESTORE);
 #ifdef DEBUG
 		Serial.print("target temperature ");
-	 	Serial.print(target_temperature);
+	 	Serial.println(target_temperature);
+		Serial.print("target turbidity ");
+	 	Serial.print(target_turbidity);
 		Serial.println(" restored");
 #endif
 	}
@@ -333,6 +381,7 @@ int cnt_light = 0;
 int cnt_mixer = 0;
 void loop()
 {
+int tb_thresh;
 	respondToRequest();     // Check for command
 	delay(10);
 	if (auto_temp)		// Check and update heater(s)
@@ -340,5 +389,25 @@ void loop()
 	if (auto_valve)		// Check and update nutrient valve
 		valves.checkValves();
 	delay(1000);
-	turbidity();
+	tb_thresh = checkTurbidity();
+	if (tb_thresh > 0) {
+#ifdef DEBUG
+		Serial.println("Turbidity is defintely too high");
+#endif
+		valves.adjust('1', +100);
+	}
+	else if (tb_thresh < 0) {
+#ifdef DEBUG
+		Serial.println("Turbidity is defintely too low");
+#endif
+		valves.adjust('1', -100);
+	} else {
+#ifdef DEBUG
+		Serial.println("Turbidity is okay");
+#endif
+	}
+
+#ifdef DEBUG
+	Serial.println(turbidity());
+#endif
 }
