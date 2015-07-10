@@ -9,6 +9,7 @@
 
 :- dynamic turbidostat/6. % t(Name, ID, Port, PID, In, Out)
 :- dynamic turbidostats/1.
+:- dynamic identified/2.
 :- dynamic tt_reading/4.
 :- dynamic measurement/3. % Name, {temperature,turbidity}, Value
 :- multifile measurement/3.
@@ -288,8 +289,11 @@ initialise(W, Label:[name]) :->
         send(W, append(button(good),right)),
         send(W, append(button(browse),right)),
         send(W, append(button(update),right)),
-        send(W, append(button(pump1on),right)),
-        send(W, append(button(pump1off),right)),
+%        send(W, append(button(pump1on),right)),
+%        send(W, append(button(pump1off),right)),
+        send(W, append(button(rtm),right)),
+        send(W, append(button(rtb),right)),
+        send(W, append(button(red),right)),
         new(@edbut, button(edit)),
         send(W, append(@edbut,right)),
 	get(W, graphicals, Chain),
@@ -302,7 +306,7 @@ initialise(W, Label:[name]) :->
         send_list(@tmenu, append, NameList),
         send(@tmenu, alignment, center),
         send(@tmenu, layout, horizontal),
-        send(@tmenu, border, 20),
+%       send(@tmenu, border, 20),
 %       send(@tmenu, area, area(100,100,540,500)),
         send(@tmenu, value_font,  F1),
         send(@tmenu, margin, 12),
@@ -315,6 +319,9 @@ initialise(W, Label:[name]) :->
 	tt_labels(NameList, temperature, F4, [A|As]),
 	send(W, append(A, next_row)),
 	send_list(W, append, As),
+	tt_lagoons(NameList, 4, F3, [L|Ls],[]),
+	send(W, append(L, next_row)),
+	send_list(W, append, Ls),
 	tt_labels(NameList, turbidity, F4, [B|Bs]),
 	send(W, append(B,next_row)),
 	send_list(W, append, Bs),
@@ -375,10 +382,43 @@ browse(_) :-> manpce.
 pump1on(_) :-> talkblue('p11\n').
 pump1off(_) :-> talkblue('p10\n').
 
+rtm(_) :-> talkblue(['t\n']).
+rtb(_) :-> talkblue(['b\n']).
+red(_) :-> colorlagoon(aristotle,2,red).
+
+
+identify :-
+    blueteeth(Ss),
+    identify(Ss).
+
+identify([]).
+identify([S|Ss]) :-
+    writeln(idsocket(S)),
+    bt_converse(S, 'i\n', Reply),
+    writeln(reply(Reply)),
+    add_to_editor(buffon, Reply),
+    atom_codes(Reply,RChs),
+    RChs = [H|_],
+    writeln(H),
+    append("Lagoon",[H],NameChs),
+    atom_codes(Name,NameChs),
+    assert(identified(Name,S)),
+    identify(Ss).
+
 talkblue(Cmd) :-
     blueteeth([S|_]),
-    bt_converse(S,Cmd, Reply),
+    writeln(socket(S)),
+    bt_converse(S, Cmd, Reply),
+    writeln(reply(Reply)),
     add_to_editor(buffon, Reply).
+
+talkblue(Who, Cmd) :-
+    identified(Who,S),
+    writeln(socket(S)),
+    bt_converse(S, Cmd, Reply),
+    writeln(reply(Reply)),
+    add_to_editor(buffon, Reply).
+
 
 text_fred :- new_value( darwin, turbidity,  800),
               text_from_editor(@aristotle_editor, Text),
@@ -482,6 +522,42 @@ tt_labels([Name|T], Type, Font, [@Temp|As]) :-
         get(@Temp, area, Area),
 	send(Area, set( width := 300) ),
 	tt_labels(T, Type, Font, As).
+
+% [@Temp|As]) :-
+tt_lagoons([],          _,    _) --> [].
+tt_lagoons([Name|T], Num, Font ) --> 
+        spacer(Name),
+	n_lagoons(0,Num,Name,Font),
+        spacer(Name),
+        tt_lagoons(T,Num,Font).
+
+spacer(Name) --> [@Temp],
+   {    concat_atom([Name,'_spacer'],Temp),
+        free(@Temp),
+        new(@Temp,  button(Temp)),
+        send(@Temp, shadow, 6),  % Not on Windows
+        send(@Temp, radius, 4),   % No effect on Windows
+        send(@Temp, label, ' '),
+        get(@Temp, area, Area),
+	send(Area, set( width := 4) ) }.
+
+n_lagoons(Num, Num,     _,    _) --> !, [].
+n_lagoons(Num, Last, Name, Font) --> [@Temp],
+   {    
+	NNum is Num + 1,
+	concat_atom([Name,'_',NNum],Temp),
+	concat_atom(['L',NNum],LLabel),
+        free(@Temp),
+        new(@Temp,  button(Temp)),
+        send(@Temp, label_font, Font),
+        send(@Temp, shadow, 12),  % Not on Windows
+        send(@Temp, radius, 8),   % No effect on Windows
+        send(@Temp, show_focus_border, @off),
+	send(@Temp, colour(green)),
+        send(@Temp, label, LLabel),
+        get(@Temp, area, Area),
+	send(Area, set( width := 60) ) },
+	n_lagoons(NNum, Last, Name, Font).
 
 tt_editors([], []).
 tt_editors([Name|T], [@TempEd|Es]) :-
@@ -663,6 +739,10 @@ text_from_editor(E, Text) :-
 add_to_editor(Name, Codes) :-
         concat_atom([Name,'_editor'], E),
         send(@E?text_buffer, append, string(Codes)).
+
+colorlagoon(Name,Num,Color) :-
+        concat_atom([Name,'_',Num], E),
+	send(@E, colour, colour(Color)).
 
 %        get(@E?text_buffer?contents, sub, 0, @E?text_buffer?size, String)
 %        send(String,append,string(Codes)).
