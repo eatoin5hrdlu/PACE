@@ -1,0 +1,14 @@
+:- [b].
+
+% main :- pce_main_loop(main).
+
+main :-
+     current_prolog_flag(argv,[E]), b(E).
+
+save(Exe) :-
+        pce_autoload_all,
+        qsave_program(Exe,
+                      [ emulator(swi('bin/xpce-stub.exe')),
+                        stand_alone(true),
+                        goal(b)
+                      ]).

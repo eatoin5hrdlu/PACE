@@ -12,6 +12,9 @@
 	
 :- [my_pce_utils].
 
+:- dynamic target_value/2, current_value/4, current_value/2.
+
+% Bug in XPCE, but this button class will resize properly
 :- pce_begin_class(ebutton, button).
 compute(_) :-> true.
 :- pce_end_class.
@@ -24,17 +27,20 @@ compute(_) :-> true.
 % pathe.config
 %
 %
-% After device discovery process, this evostat/1 term (with addresses)
-% will be written to discover.config
+% After device discovery process, the evostat specification
+% will be written to evostat.config with verified BT addresses.
+% Shutting down should preserve verified bluetooth addresses
+% as well as target values for temperature, turbidity, and flow.
 %
 
-components(aristotle, [cellstat(ac5, discover),
-		       lagoon(  al1, '98:D3:31:70:2B:70'),
-		       lagoon(  al2, discover),
-		       lagoon(  al3, discover),
-		       lagoon(  al4, discover),
-		       pump(    ap6, discover),
-		       sampler(as7,  discover)]).
+
+estat(aristotle, [cellstat(c5, discover, temp(37.9), od(0.4)),
+		  lagoon(  l1, '98:D3:31:70:2B:70', temp(36.0), lux(0.1), flow(3.5),
+		  lagoon(  l2, discover),
+		  lagoon(  l3, discover),
+		  lagoon(  l4, discover),
+		  pump(    p6, discover),
+		  sampler( s7,  discover)]).
 	 
 
 
@@ -49,57 +55,58 @@ components(aristotle, [cellstat(ac5, discover),
 
 % Create a dialog for this EvoStat
 
-screen(aristotle, 520, 740, point(50,50),
-       [[cellstat(ac5, text(aristotle), size(200,12))],
-	[],
-	[image(acam, 'opencvlevel.jpg')],
-	[],
-      
-      [button(atc, value(c5,temperature)),
-       button(atb, value(c5, turbidity ))  ],
-       
-      [button(al1,name(l1)),
-       button(al2,name(l2)),
-       button(al3,name(l3)),
-       button(al4,name(l4))],
-      
-      [button(at1, value(l1,temperature)),
-       button(at2, value(l2,temperature)),
-       button(at3, value(l3,temperature)),
-       button(at4, value(l4,temperature)) ],
-      [],
-      
-      [button(alux1, value(l1,lux)),
-       button(alux2, value(l2,lux)),
-       button(alux3, value(l3,lux)),
-       button(alux4, value(l4,lux)) ],
-      [],
+screen(aristotle, 520, 760, point(50,50),
+       [[cellstat(c5, text(aristotle), size(200,12))],
+	[button(tc, value(c5,temperature,37.0)),
+	 button(tb, value(c5, turbidity,0.4 ))  ],
 
-      [button(aflow1, value(l1,flow)),
-       button(aflow2, value(l2,flow)),
-       button(aflow3, value(l3,flow)),
-       button(aflow4, value(l4,flow)) ]
+	[image(acam, 'opencvlevel.jpg')],
+      
+       
+      [button(l1,text(l1)),
+       button(l2,text(l2)),
+       button(l3,text(l3)),
+       button(l4,text(l4))],
+
+      [spacer(blue,8)],
+      
+      [button(t1, value(l1,temperature,37.0)),
+       button(t2, value(l2,temperature,37.0)),
+       button(t3, value(l3,temperature,37.0)),
+       button(t4, value(l4,temperature,37.0)) ],
+      [spacer(green,4)],
+      
+      [button(lux1, value(l1,lux,0.1)),
+       button(lux2, value(l2,lux,0.2)),
+       button(lux3, value(l3,lux,0.3)),
+       button(lux4, value(l4,lux,0.4)) ],
+      [spacer(yellow,8)],
+
+      [button(flow1, value(l1,flow,3.5)),
+       button(flow2, value(l2,flow,3.5)),
+       button(flow3, value(l3,flow,3.5)),
+       button(flow4, value(l4,flow,3.5)) ]
 ]).
 
 screen(darwin, 460, 600, point(700,50),
-      [[cellstat(dc5, text(darwin), size(200,12))],
+      [[cellstat(c5, text(darwin), size(200,12))],
       
-      [button(dtc, value(c5,temperature)),
-       button(dtb, value(c5, turbidity ))  ],
-      [],
+      [button(tc, value(c5,temperature,31.0)),
+       button(tb, value(c5, turbidity,0.3 ))  ],
+      [spacer(blue,8)],
        
-      [button(dl1,name(l1)),
-       button(dl2,name(l2))],
+      [button(l1,text(l1)),
+       button(l2,text(l2))],
       
-      [button(dt1, value(l1,temperature)),
-       button(dt2, value(l2,temperature)) ],
-      [],
+      [button(t1, value(l1,temperature,31.0)),
+       button(t2, value(l2,temperature,31.0)) ],
+      [spacer(blue,8)],
       
-      [button(dlux1, value(l1,lux)),
-       button(dlux2, value(l2,lux)) ],
+      [button(lux1, value(l1,lux,0.3)),
+       button(lux2, value(l2,lux,0.3)) ],
 
-      [button(dflow1, value(l1,flow)),
-       button(dflow2, value(l2,flow)) ]
+      [button(flow1, value(l1,flow,2.5)),
+       button(flow2, value(l2,flow,2.5)) ]
 ]).
 
 resize(Thing) :-
@@ -108,21 +115,36 @@ resize(Thing) :-
     BW is 2*BH,
     send(Thing, size(size(BW,BH))).
 
-row_item(button(Name,_What),@Name) :-
+create_label(value(Device,Parameter,Target),Name) :-
+    assert(target_value(Name, Target)),
+    assert(current_value(Name, Device, Parameter, 0)).
+
+create_label(text(Label),Name) :-
+    assert(current_value(Name, evostat, label, Label)).
+
+
+row_item(button(Name,What),@Name) :-
     free(@Name),
     new(@Name,ebutton(Name)),
     send(@Name, accelerator, @nil),
     resize(@Name),
-    send(@Name, colour(red)).
+    send(@Name, colour(red)),
+    create_label(What, Name).
 
-row_item(cellstat(Object, text(Evo), size(Width,Height)),@Name) :-
-    atom_codes(Object,OCs),
-    atom_codes(Evo,[H|_]),
-    atom_codes(Name,[H|OCs]), % Unique name
+row_item(cellstat(Name, text(Evo), size(Width,Height)),@Name) :-
     free(@Name),
     new(@Name,button(Name)),
-    send(@Name, colour(red)),
-    send(@Name, size, size(Width, Height)).
+    send(@Name, colour(blue)),
+    send(@Name, size, size(Width, Height)),
+    create_label(text(Evo),Name).
+
+row_item(spacer(Color,Height), @Spacer) :-
+    atom(Color),
+    screen(_,Width,_H,_Location,_Mitems),
+    NWid is Width - 30,
+    new(@Spacer, box(NWid,Height)),
+    send(@Spacer, colour, Color),
+    send(@Spacer, fill_pattern, colour(Color)).
 
 %row_item(label(Name,_What),@Name) :-
 %    free(@Name),
@@ -133,12 +155,12 @@ row_item(image(Name,File),@Name) :-
     free(@Name),
     new(@Name, label(Name)),
     new(I, image(File)),
-    screen(_,Width,_,_,_),
-    NewWidth is Width - Width/10,
-    NewHeight is integer(Width*0.675),
-    get(I, size, Size),
-    send(Size, width(NewWidth)),
-    send(Size, height(NewHeight)),
+%    screen(_,Width,_,_,_),
+%    NewWidth is Width - Width/10,
+%    NewHeight is integer(Width*0.675),
+%    get(I, size, Size),
+%    send(Size, width(NewWidth)),
+%    send(Size, height(NewHeight)),
     send(@Name, selection, I).
 
 
@@ -159,11 +181,9 @@ initialise(W, Label:[name]) :->
 				  [ menu_item(load,
 					      message(W, load, @finder?file)),
 				    menu_item(save,
-					      message(W, save_buffer),
-					      condition := W?modified == @on,
-					      end_group := @on),
+					      message(W, save_buffer)),
 				    menu_item(quit,
-					      message(W, destroy))
+					      message(W, quit))
 				  ]),
 		about_atom(About),
 		send_list(Help, append,
@@ -173,20 +193,56 @@ initialise(W, Label:[name]) :->
 % Rest of GUI
 		
 	  initialize_rows(MItems, W),
+
+	  new(Msg1, message(W, update)),
+	  free(@ut),
+	  send(W, attribute, attribute(timer, new(@ut, timer(3.0, Msg1)))),
+	  send(@ut, start),
           send_super(W, open, Location).
 
-c2(W) :->
-        "User pressed the L1 button"::
-        writeln(ok),
-        send(W, return(ok)).
+c5(_W) :-> "User pressed the CellStat button":: writeln(cellstat).
 
-l1(W) :->
-        "User pressed the L1 button"::
-        writeln(ok),
-        send(W, return(ok)).
+l1(_W) :-> "User pressed the L1 button"::
+  current_prolog_flag(argv,[_,X|_]),
+  send(@l1, label, X).
+
+l2(_W) :-> "User pressed the L1 button":: writeln(lagoon).
+l3(_W) :-> "User pressed the L1 button":: writeln(lagoon).
+l4(W)  :-> "User pressed the L1 button":: writeln(lagoon),send(W,return(ok)).
+
+tb(W)   :-> newvalue(tb,W).
+tc(W)   :-> newvalue(tc,W).
+
+t1(W)   :-> newvalue(t1,W).
+t2(W)   :-> newvalue(t2,W).
+t3(W)   :-> newvalue(t3,W).
+t4(W)   :-> newvalue(t4,W).
+
+lux1(W) :-> newvalue(lux1,W).
+lux2(W) :-> newvalue(lux2,W).
+lux3(W) :-> newvalue(lux3,W).
+lux4(W) :-> newvalue(lux4,W).
+
+flow1(W) :-> newvalue(flow1,W).
+flow2(W) :-> newvalue(flow2,W).
+flow3(W) :-> newvalue(flow3,W).
+flow4(W) :-> newvalue(flow4,W).
+
+
+newvalue(Name,Parent) :-
+        get(getValue('New Target Value'), prompt, String),
+	atom_number(String,Value),
+        retract(target_value(Name,_)),
+        assert(target_value(Name, Value)),
+        send(Parent,update).
+
 
 quit(W) :->
         "User pressed the Quit button"::
+	send(@ut, stop),     % Shut down the label update timer
+	retractall(current_value(_,_,_,_)),
+	retractall(current_value(_,_)),
+	retractall(target_value(_,_)),
         send(W, return(quit)).
 
 ok(W) :->
@@ -197,20 +253,117 @@ prompt(W, Value:name) :<-
         "Open it, destroy it and return the result"::
         get(W, confirm, Value).
 
+% Green when within 5% of Target magnitude
+range_color(Target, Current, Color) :-
+    Delta is Target/20,
+    Max is Target + Delta,
+    Min is Target - Delta,
+    (  Current > Max -> Color = red
+     ; Current < Min -> Color = blue
+     ;                  Color = green
+    ).
+
+bt_update(W) :->
+    get(W, graphicals, Chain),
+    chain_list(Chain, CList),
+    member(Cell, CList),
+    Cell =.. [@,Parameter],
+    current_value(Parameter, Device, Label, Previous),
+
+    % Get the current value from the Device (or not)
+    ( connection(Device, Socket),
+      send_bluetooth(Socket, [Parameter], Reply),
+      atom_number(Reply, Current),
+      retract(current_value(Parameter,Device,Label,Previous)),
+      assert( current_value(Parameter,Device,Label,Current))
+     ; Previous = Current
+     ),
+
+    % Display     
+    ( target_value(Name, Target) ->
+	  range_color(Target, Current, Color),
+	  send(Cell, colour(Color)),
+	  concat_atom([Parameter,'\n', Target,' / ',Current], Label)
+     ; Label = Current
+    ),
+    send(Cell, label, Label),
+    fail.
+
+
+update(W) :->
+    get(W, graphicals, Chain),
+    chain_list(Chain, CList),
+    member(Cell, CList),
+    Cell =.. [@,Name],
+    current_value(Name, _Device, Parameter, Current),
+    ( target_value(Name, Target) ->
+	  range_color(Target, Current, Color),
+	  send(Cell, colour(Color)),
+	  concat_atom([Parameter,'\n', Target,' / ',Current], Label)
+     ; Label = Current
+    ),
+    send(Cell, label, Label),
+    fail.
+    
+
 :- pce_end_class.
 
 
 b :-
+  ( current_prolog_flag(argv,[_,Name|_]) ; Name = darwin ),
   free(@gui),
-  new(@gui, evostat(aristotle)),
+  new(@gui, evostat(Name)),
   send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
-  free(@hui),
-  new(@hui, evostat(darwin)),
-  send(@hui?frame, icon, bitmap('./open/images/evo.xpm')),
-  get(@gui, prompt, Name),
-  (Name == quit -> halt; true),
-  get(@hui, prompt, N2),
-  (N2 == quit -> halt; true).
+  get(@gui, prompt, Reply),
+  (Reply = quit -> send(@gui, destroy); true ),
+  halt.
+
+%  free(@hui),
+%  new(@hui, evostat(darwin)),
+%  send(@hui?frame, icon, bitmap('./open/images/evo.xpm')),
+%  get(@hui, prompt, N2),
+%  (N2 == quit -> halt; true).
+
+righton :-
+    retract(current_value(t2,_,_,_)),
+    assert(current_value(t2,l2,temperature,36)).
+
+raise :-
+    current_value(t2,_,_,T),
+    retract(current_value(t2,_,_,T)),
+    NewT is T + 2,
+    assert(current_value(t2,l2,temperature,NewT)).
+
+lower :-
+    current_value(t2,_,_,T),
+    retract(current_value(t2,_,_,T)),
+    NewT is T - 2,
+    assert(current_value(t2,l2,temperature,NewT)).
 
 
+:- pce_begin_class(getValue, dialog, "Change a Value").
 
+initialise(W, Label:[name]) :->
+        "Initialise the window and fill it"::
+        send_super(W, initialise(Label)),
+        send(W, append(text_item(name))),
+        send(W, append(button(ok))),
+        send(W, append(button(cancel))),
+        send(W, default_button(ok)).
+        
+ok(W) :->
+        "User pressed the OK button"::
+        get(W, member(name), NameItem),
+        get(NameItem, selection, Typed),
+        send(W, return, Typed).
+
+cancel(W) :->
+        "User pressed the Cancel button"::
+        send(W, return(@nil)).
+
+prompt(W, Value:name) :<-
+        "Open it, destroy it and return the result"::
+        get(W, confirm, Value),
+        free(W).
+
+:- pce_end_class.
