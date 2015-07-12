@@ -9,7 +9,6 @@
 	
 %:- [my_pce_utils].
 
-
 repeat(N) :-
              integer(N), % type check
              N>0,        % value check 
@@ -19,41 +18,56 @@ repeat1(1) :- !.
 repeat1(_).
 repeat1(N) :- M is N-1, repeat1(M).
 
-:- load_foreign_library(foreign(plblue)), writeln('plblue (BLUETOOTH) loaded').
+:- load_foreign_library(plblue), writeln('plblue (BLUETOOTH) loaded').
 
 :- pce_begin_class(ebutton, button).
 
-variable(btaddr,atom,get,"Bluetooth (MAC) Address").
-variable(socket,atom,get,"Open Socket to Device").
+variable(btaddr, name, get, "Bluetooth (MAC) Address" ).
+variable(reply,  name, get, "Last Message from Device" ).
+variable(socket,  int, get, "Open Socket to Device" ).
 
 initialise(B, Label:[name], BtAddr:[name]) :->
 	"Initialise the button and connect to device"::
         send_super(B, initialise(Label)),
-	repeat(10),
-	   bt_socket(BtAddr,Socket),
-	   sleep(1),
-	\+ Socket = -1,
 	send(B,slot,btaddr,BtAddr),
-	send(B,slot,socket,Socket).
+	send(B,slot,socket,-1),
+	connect(B).
 
 compute(_) :-> true.
 
+reply(
 cmd(Self, Cmd) :->
 	get(Self, socket, Socket),
-	bt_converse(Socket, Cmd, Reply),
-	send(Self, slot, reply, Reply).
+	( bt_converse(Socket, Cmd, Reply) ->
+	  send(Self, slot, reply, Reply)
+	; send(Self, slot, reply, failed),
+	  bt_close(Socket)
+	).
+
+connect(Self) :->
+	get(Self, socket, OldSocket),
+        ( OldSocket > -1 -> bt_close(OldSocket) ; true),
+	get(Self, btaddr, BtAddr),
+	repeat(5),
+		bt_socket(BtAddr,Socket),
+	( Socket > -1; sleep(1),fail ),
+`	!,
+	send(B,slot,socket,Socket).
+
 :- pce_end_class.
 
 
-lagoon(l1, [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(aristotle), size(200,12)]).
+lagoon(l1,  [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(lagoon1), size(200,12)]).
+lagoon(l2,  [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(lagoon1), size(200,12)]).
+cellstat(c5,[ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(aristotle), size(200,12)]).
+pumps(p6,   [ btaddr('98:D3:31:40:1D:A4'), size(5,5) ]).
 
 main :-
-	lagoon(Name, Data),
+	cellstat(Name, Data),
 	member(btaddr(Mac),Data),
-	new(EB, ebutton(Name,Mac)),
+	new(EB, ebutton(Name, Mac)),
 	send(EB, cmd, 'i\n'),
 	get(EB, reply, Reply),
 	writeln(Reply).
-	
 
 	 
