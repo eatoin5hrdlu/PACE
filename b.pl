@@ -34,13 +34,14 @@ compute(_) :-> true.
 %
 
 
-estat(aristotle, [cellstat(c5, discover, temp(37.9), od(0.4)),
-		  lagoon(  l1, '98:D3:31:70:2B:70', temp(36.0), lux(0.1), flow(3.5),
-		  lagoon(  l2, discover),
-		  lagoon(  l3, discover),
-		  lagoon(  l4, discover),
-		  pump(    p6, discover),
-		  sampler( s7,  discover)]).
+configure(aristotle, [
+  cellstat(c5, discover, temp(37.9), od(0.4)),
+  lagoon(l1, '98:D3:31:70:2B:70', temp(36.0), lux(0.1), flow(3.5)),
+  lagoon(l2, discover,            temp(36.0), lux(0.1), flow(3.5)),
+  lagoon(l3, discover,            temp(36.0), lux(0.1), flow(3.5)),
+  lagoon(l4, discover,            temp(36.0), lux(0.1), flow(3.5)),
+  pump(  p6, discover ),
+  sampler(s7,  discover)]).
 	 
 
 
@@ -129,7 +130,27 @@ row_item(button(Name,What),@Name) :-
     send(@Name, accelerator, @nil),
     resize(@Name),
     send(@Name, colour(red)),
+
+
+    new(M, move_gesture),
+    new(P, popup_gesture(new(Pop, popup))),
+    send_list(Pop, append,
+              [ menu_item(reconnect, message(@Name,colour,colour(black)))
+                , menu_item(disconnect,message(@Name,colour,colour(white)))
+                , menu_item(dark, message(@Name,colour,colour(black)))
+                , menu_item(light,message(@Name,colour,colour(white))) 
+	      ]),
+    new(G, handler_group(M, P)),
+    send(@Name, recogniser, G),
     create_label(What, Name).
+
+%    new(H1, message(File, displayed, @on)),
+
+%    new(HIn, message(@Name, colour, colour(brown))),
+%    new(Hout, message(@Name, colour, colour(red))),
+%    send(@Name, recogniser,handler(area_enter, HIn)),
+%    send(@Name, recogniser,handler(area_exit, Hout)),
+
 
 row_item(cellstat(Name, text(Evo), size(Width,Height)),@Name) :-
     free(@Name),
@@ -231,7 +252,7 @@ flow4(W) :-> newvalue(flow4,W).
 
 newvalue(Name,Parent) :-
         get(getValue('New Target Value'), prompt, String),
-	atom_number(String,Value),
+	catch(atom_number(String,Value),error(type_error(_,_),_),fail),
         retract(target_value(Name,_)),
         assert(target_value(Name, Value)),
         send(Parent,update).
@@ -280,7 +301,7 @@ bt_update(W) :->
      ),
 
     % Display     
-    ( target_value(Name, Target) ->
+    ( target_value(Parameter, Target) ->
 	  range_color(Target, Current, Color),
 	  send(Cell, colour(Color)),
 	  concat_atom([Parameter,'\n', Target,' / ',Current], Label)
@@ -310,7 +331,10 @@ update(W) :->
 
 
 b :-
-  ( current_prolog_flag(argv,[_,Name|_]) ; Name = darwin ),
+    ( current_prolog_flag(argv,[_,Name|_]) ; Name = darwin ),
+    b(Name).
+
+b(Name) :-
   free(@gui),
   new(@gui, evostat(Name)),
   send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
@@ -367,3 +391,4 @@ prompt(W, Value:name) :<-
         free(W).
 
 :- pce_end_class.
+
