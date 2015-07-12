@@ -1,0 +1,59 @@
+#!/usr/bin/xpce
+:- use_module(library(time)).
+:- use_module(library(pce)).
+:- use_module(library(process)).
+:- use_module(library(charsio)).
+:- use_module(library(helpidx)).
+:- use_module(library(lists)).
+:- use_module(library(ctypes)).
+	
+%:- [my_pce_utils].
+
+
+repeat(N) :-
+             integer(N), % type check
+             N>0,        % value check 
+             repeat1(N).
+
+repeat1(1) :- !.
+repeat1(_).
+repeat1(N) :- M is N-1, repeat1(M).
+
+:- load_foreign_library(foreign(plblue)), writeln('plblue (BLUETOOTH) loaded').
+
+:- pce_begin_class(ebutton, button).
+
+variable(btaddr,atom,get,"Bluetooth (MAC) Address").
+variable(socket,atom,get,"Open Socket to Device").
+
+initialise(B, Label:[name], BtAddr:[name]) :->
+	"Initialise the button and connect to device"::
+        send_super(B, initialise(Label)),
+	repeat(10),
+	   bt_socket(BtAddr,Socket),
+	   sleep(1),
+	\+ Socket = -1,
+	send(B,slot,btaddr,BtAddr),
+	send(B,slot,socket,Socket).
+
+compute(_) :-> true.
+
+cmd(Self, Cmd) :->
+	get(Self, socket, Socket),
+	bt_converse(Socket, Cmd, Reply),
+	send(Self, slot, reply, Reply).
+:- pce_end_class.
+
+
+lagoon(l1, [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(aristotle), size(200,12)]).
+
+main :-
+	lagoon(Name, Data),
+	member(btaddr(Mac),Data),
+	new(EB, ebutton(Name,Mac)),
+	send(EB, cmd, 'i\n'),
+	get(EB, reply, Reply),
+	writeln(Reply).
+	
+
+	 
