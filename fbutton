@@ -108,8 +108,20 @@ bt(Self, BtAddr) :->
 
 aristotle([
  cellstat(c5,[ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(aristotle), size(200,12)]),
- camera(c9, [ ip('127.0.0.1') , next_row, size(640,480) ]),
- lagoon(l1,  [ btaddr('98:D3:31:70:2B:70'), next_row, temp(37.9), od(0.4), text(lagoon1), size(200,12)]),
+ camera(c9, [ wget('127.0.0.1',['wget http://',@,) , wget(next_row, size(640,480) ]),
+
+free(@Name),
+    new(@Name, label(Name)),
+    new(I, image(File)),
+%    screen(_,Width,_,_,_),
+%    NewWidth is Width - Width/10,
+%    NewHeight is integer(Width*0.675),
+%    get(I, size, Size),
+%    send(Size, width(NewWidth)),
+%    send(Size, height(NewHeight)),
+    send(@Name, selection, I).
+
+lagoon(l1,  [ btaddr('98:D3:31:70:2B:70'), next_row, temp(37.9), od(0.4), text(lagoon1), size(200,12)]),
  lagoon(l2,  [ btaddr('98:D3:31:70:2B:70'), right, temp(37.9), od(0.4), text(lagoon1), size(200,12)]),
  pumps(p6,   [ btaddr('98:D3:31:40:1D:A4'), right, size(5,5) ])
 ]).
@@ -119,6 +131,16 @@ darwin([
  pumps(p6,   next_row, [ btaddr('98:D3:31:40:1D:A4'), size(5,5) ])
 ]).
 
+
+    new(@Name, label(Name)),
+    new(I, image(File)),
+%    screen(_,Width,_,_,_),
+%    NewWidth is Width - Width/10,
+%    NewHeight is integer(Width*0.675),
+%    get(I, size, Size),
+%    send(Size, width(NewWidth)),
+%    send(Size, height(NewHeight)),
+    send(@Name, selection, I).
 
 main(Name) :-
      new(Dialog, dialog),
@@ -135,3 +157,138 @@ converse :-
 	send(EB, cmd, 'i\n'),
 	get(EB, reply, Reply),
 	writeln(Reply).
+
+
+museum([
+lagoonRegion(330,0,480,210),
+lagoonHeight(80),    % Think of this as the divisor for levelScale
+levelScale(100),     % 100 gives level as percentage of lagoonHeight
+camera(indoor),
+rotate(@nil),
+ipMAC('c4:d6:55:34:8d:07').
+ip('172.16.3.165'),
+userpwd("&user=admin&pwd=lakewould"),
+brightness(200),
+brightnessCmd("/camera_control.cgi?param=1&value="),
+contrast(4),
+contrastCmd("/camera_control.cgi?param=2&value="),
+picCmd("/snapshot.cgi?resolution=32&user=admin&pwd=lakewould")]).
+
+    'usb' : {
+        'LagoonRegion' : (100,300,300,640),
+        'lagoonHeight' : 160,    # Can be thought of as the divisor for levelScale
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'indoor',
+        'rotate'       : None,
+        'MAC'          : -1,
+        'defaultIP'    : -1,
+        'userpwd'      :  "&user=admin&pwd=lakewould",
+        'brightness'   :  200,   # 0-240 for indoor camera
+        'brightnessCmd': "/camera_control.cgi?param=1&value=",
+        'contrast'     :  4,     # 0-6 for indoor camera
+        'contrastCmd'  : "/camera_control.cgi?param=2&value=",
+        'picCmd'       : "/snapshot.cgi?resolution=32&user=admin&pwd=lakewould" },
+
+    'splatspace' : {
+        'LagoonRegion' : (540,10,900,710),
+        'lagoonHeight' : 150,
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'outdoor',
+        'rotate'       : 90,
+        'MAC'          : "00:62:6e:4f:17:d9",
+        'userpwd'      : "&usr=admin&pwd=lakewould",
+        'defaultIP'    : "192.168.2.110",
+        'brightness'   :  30,   # 0-100 for outdoor camera
+        'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
+        'contrast'     :  30,   # 0-100 for outdoor camera
+        'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
+        'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=lakewould"
+	
+  },
+
+'splatwifi' : {
+        'LagoonRegion' : (300,0,480,260),
+        'lagoonHeight' : 80,
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'outdoor',
+        'rotate'       : 90,
+        'MAC'          : "E8:AB:FA:OF:AB:77",
+        'userpwd'      : "&usr=admin&pwd=lakewould",
+        'defaultIP'    : "192.168.2.110",
+        'brightness'   :  80,   # 0-100 for outdoor camera
+        'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
+        'contrast'     :  50,   # 0-100 for outdoor camera
+        'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
+        'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=admin&pwd=lakewould"
+   },
+   'sandstone' : {
+        'LagoonRegion' : (540,10,900,710),
+        'lagoonHeight' : 150,
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'outdoor',
+        'rotate'       : 90,
+        'MAC'          : "00:62:6e:4f:17:d9",
+        'userpwd'      : "&usr=peter&pwd=88wcheeck",
+        'defaultIP'    : "192.168.254.26",
+        'brightness'   :  40,   # 0-100 for outdoor camera
+        'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
+        'contrast'     :  50,   # 0-100 for outdoor camera
+        'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
+        'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=peter&pwd=88wcheeck"
+   }
+}
+
+
+
+about_atom(About) :-
+        open('evostat.about', read, Handle),
+	read_pending_input(Handle,FileContent,[]),
+	atom_chars(About,FileContent).
+
+disp_menu([]).
+disp_menu([L|T]) :-
+    disp_menu_line(L),
+    disp_menu(T).
+
+disp_menu_line([])    :- writeln('').
+disp_menu_line([L|T]) :- disp_item(L), disp_menu_line(T).
+
+disp_item(button(_,X)) :- write(' '),write(X),write(' ').
+disp_item(label(_,X)) :- write(' '),write(X),write(' ').
+disp_item(image(_,X)) :- write(' '),write(X),write(' ').
+
+initialize_rows([],_).
+initialize_rows([R|Rs],W) :-
+    initialize_row(R,W),
+    initialize_rows(Rs,W).
+
+initialize_row([],W) :-
+    screen(_,Width,_H,_Location,_Mitems),
+    NWid is Width - 30,
+    new(Spacer, box(NWid,8)),
+    send(W, append(Spacer,next_row)),
+    send(Spacer, colour, blue),
+    send(Spacer, fill_pattern, colour(blue)).
+%    send(Spacer, displayed, @off).
+
+
+initialize_row([I|Is],W) :-
+    row_item(I,Pce),
+    send(W, append(Pce,next_row)),
+    continue_row(Is,W).
+
+continue_row(  [],  _).
+continue_row([I|Is],W) :-
+    row_item(I,Pce),
+    send(W, append(Pce,right)),
+    continue_row(Is,W).
+
+freeall :-
+    catch( get(@gui, graphicals, Chain),
+	   ( chain_list(Chain, CList), freeall(CList) ),
+	    writeln(firsttime)).
+	   
+freeall([]).
+freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
+
+
