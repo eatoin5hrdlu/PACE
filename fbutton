@@ -1,0 +1,137 @@
+#!/usr/bin/xpce
+:- use_module(library(time)).
+:- use_module(library(pce)).
+:- use_module(library(process)).
+:- use_module(library(charsio)).
+:- use_module(library(helpidx)).
+:- use_module(library(lists)).
+:- use_module(library(ctypes)).
+
+:- use_module(library(time)).
+:- use_module(library(process)).
+	
+%:- [my_pce_utils].
+
+repeat(N) :-
+             integer(N), % type check
+             N>0,        % value check 
+             repeat1(N).
+
+repeat1(1) :- !.
+repeat1(_).
+repeat1(N) :- M is N-1, repeat1(M).
+
+:- load_foreign_library(plblue), writeln('plblue (BLUETOOTH) loaded').
+
+:- pce_begin_class(ebutton, button).
+
+variable(ipsocket,  int, get, "IP Socket" ).
+variable(btsocket,  int, get, "BT Socket" ).
+variable(btmac, name, get, "BTMAC" ).
+variable(mac,   name, get, "MAC address" ).
+variable(ip,    name, get, "IP address" ).
+variable(reply, name, get, "Last Message from Device" ).
+
+initialise(B, Label:[name]) :->
+	"Initialise the button and connect to device"::
+        send_super(B, initialise(Label)),
+	send(B, slot, btsocket, -1),
+	send(B, slot, ipsocket, -1).
+
+compute(_) :-> true.
+
+picture(Self) :->
+	"Get a new picture"::
+	get(Self, wget, Command),
+	get(Self, imagefile, Filename),
+        process_create('/usr/bin/wget', [ Command ], []),
+	new(I, image(Filename)),
+	send(@picture, image,  I).
+
+command(Self, Cmd) :->
+	"Send command to IP/Bluetooth Socket and save Reply"::
+        get(Self, ipsocket, Socket),
+        (Socket > -1
+	-> send(Socket, Cmd),
+	    recv(Socket, Reply)
+       ;    get(Self, btsocket, BTSocket),
+	    ( bt_converse(BTSocket, Cmd, Reply)
+	    -> send(Self, slot, reply, Reply)
+	    ; send(Self, slot, reply, failed)
+	    )
+       ).
+
+btaddr(Self, Addr:[name]) :->
+	get(Self, btsocket, OldSocket),
+        ( OldSocket > -1 -> bt_close(OldSocket) ; true),
+	repeat(5),
+		bt_socket(Addr,BTSocket),
+	( BTSocket > -1; sleep(1),fail ),
+	!,
+	send(Self,slot,btsocket,BTSocket).
+
+insertIP(Cmd, IP, Result) :-
+        atom_codes(Cmd, Cs),
+        atom_codes(IP, ICs),
+	[AT] = "@",
+        append(Front,[AT|Rest],Cs),
+	flatten([Front,ICs,Rest],CommandCs),
+	atom_codes(Result,CommandCs).
+
+ip(Self, IP:[name]) :->
+	 socket(IP, Socket),
+	 send(Self, slot, ipsocket, Socket).
+
+mac_wget(Self, MAC:[name], Cmd:[name]) :->
+        getIPfromMAC(MAC,IP),
+	send(Self, wget, wget(IP, Cmd)).
+
+wget(Self, IP:[name], Cmd:[name]) :->
+        insertIP(Cmd,IP,Command),
+	send(Self, slot, wget, Command).
+
+mac(Self, MAC:[name]) :->
+        getIPfromMAC(MAC,IP),
+	send(Self, ip, ip(IP)).
+
+bt(Self, BtAddr) :->
+	get(Self, socket, OldSocket),
+        ( OldSocket > -1 -> bt_close(OldSocket) ; true),
+	repeat(5),
+		bt_socket(BtAddr,Socket),
+	( Socket > -1; sleep(1),fail ),
+	!,
+	send(Self,slot,socket,Socket).
+
+:- pce_end_class.
+
+
+aristotle([
+ cellstat(c5,[ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), text(aristotle), size(200,12)]),
+ camera(c9, [ ip('127.0.0.1') , next_row, size(640,480) ]),
+ lagoon(l1,  [ btaddr('98:D3:31:70:2B:70'), next_row, temp(37.9), od(0.4), text(lagoon1), size(200,12)]),
+ lagoon(l2,  [ btaddr('98:D3:31:70:2B:70'), right, temp(37.9), od(0.4), text(lagoon1), size(200,12)]),
+ pumps(p6,   [ btaddr('98:D3:31:40:1D:A4'), right, size(5,5) ])
+]).
+
+darwin([
+ lagoon(l1,  right, [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), size(200,12)]),
+ pumps(p6,   next_row, [ btaddr('98:D3:31:40:1D:A4'), size(5,5) ])
+]).
+
+
+main(Name) :-
+     new(Dialog, dialog),
+     call(Name, Components),
+     maplist(create(Dialog), Components).
+
+create(Dialog, Component) :-
+	Component =.. [_Type, Name, Position, Data],
+	send(Dialog, append, new(G,ebutton(Name)), Position),
+	trace,
+	maplist(send(G), Data).
+
+converse :-
+	send(EB, cmd, 'i\n'),
+	get(EB, reply, Reply),
+	writeln(Reply).
