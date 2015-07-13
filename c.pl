@@ -36,7 +36,7 @@
 % Create a dialog for this EvoStat
 
 screen(aristotle, 520, 760, point(50,50)).
-screen(darwin, 460, 600, point(700,50)).
+screen(darwin, 460, 600, point(50,50)).
 
 resize(Thing) :-
     screen(_,_,Height,_,_),
@@ -148,7 +148,7 @@ initialise(W, Label:[name]) :->
 	 maplist(create(@gui), Components),
 	  new(Msg1, message(W, update)),
 	  free(@ut),
-	  send(W, attribute, attribute(timer, new(@ut, timer(90.0, Msg1)))),
+	  send(W, attribute, attribute(timer, new(@ut, timer(10.0, Msg1)))),
 	  send(@ut, start),
           send_super(W, open, Location).
 
@@ -223,48 +223,16 @@ range_color(Target, Current, Color) :-
      ;                  Color = green
     ).
 
-bt_update(W) :->
-    get(W, graphicals, Chain),
-    chain_list(Chain, CList),
-    member(Cell, CList),
-    Cell =.. [@,Parameter],
-    current_value(Parameter, Device, Label, Previous),
-
-    % Get the current value from the Device (or not)
-    ( connection(Device, Socket),
-      send_bluetooth(Socket, [Parameter], Reply),
-      atom_number(Reply, Current),
-      retract(current_value(Parameter,Device,Label,Previous)),
-      assert( current_value(Parameter,Device,Label,Current))
-     ; Previous = Current
-     ),
-
-    % Display     
-    ( target_value(Parameter, Target) ->
-	  range_color(Target, Current, Color),
-	  send(Cell, colour(Color)),
-	  concat_atom([Parameter,'\n', Target,' / ',Current], Label)
-     ; Label = Current
-    ),
-    send(Cell, label, Label),
-    fail.
-
 update(W) :->
     get(W, graphicals, Chain),
     chain_list(Chain, CList),
     member(Cell, CList),
-    Cell =.. [@,Name],
-    current_value(Name, _Device, Parameter, Current),
-    ( target_value(Name, Target) ->
-	  range_color(Target, Current, Color),
-	  send(Cell, colour(Color)),
-	  concat_atom([Parameter,'\n', Target,' / ',Current], Label)
-     ; Label = Current
-    ),
-    send(Cell, label, Label),
+    Cell =.. [@, Component],
+    trace,
+    memberchk(Component, [c5,p6,l1,l2,l3,l4,a9]),
+    send(Cell, update),
     fail.
     
-
 :- pce_end_class.
 
 righton :-
@@ -336,27 +304,37 @@ buffon([
 ]).
 
 darwin([
-  ebutton(c5, below,
-   [ shape(40,20)]),
+  cellstat(c5, below,    [ shape(130,60)]),
+ pumps(p6,  next_row,
+   [ btaddr('98:D3:31:40:1D:A4'), shape(300,50) ]),
+ spacer(x1, next_row, [color(blue)]),
  snapshot(c9, next_row,   [ shape(640,480) ]),
- ebutton(l1, next_row,
-   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
- ebutton(l2, right,
-   [ temp(37.9), od(0.4), shape(60,30)]),
- ebutton(l3, right,
-   [ temp(37.9), od(0.4), shape(60,30)]),
- ebutton(l4, right,
-   [ temp(37.9), od(0.4), shape(60,30)]),
- ebutton(p6,  next_row,
-   [ btaddr('98:D3:31:40:1D:A4'), shape(40,20) ])
+ spacer(x2, next_row, [color(blue)]),
+ lagoon(l1, next_row,
+   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(120,60)]),
+ lagoon(l2, right,
+   [ temp(37.9), od(0.4), shape(120,60)]),
+ lagoon(l3, right,
+   [ temp(37.9), od(0.4), shape(120,60)]),
+ lagoon(l4, right,
+   [ temp(37.9), od(0.4), shape(120,60)]),
+ spacer(x3, next_row, [color(green)]),
+ sampler(a9,  next_row,   [ shape(400,50) ])
 ]).
+
+convert(spacer(_),spacer(NWid,8)) :- !,
+                                  screen(_,Width,_H,_Location),
+                                  NWid is Width - 30.
+convert(Same,Same).
 
 create(Dialog, Component) :-
 	Component =.. [Type, Name, Position, Data],
 	Class =.. [Type, Name],
-	new(G, Class),
-	maplist(send(G), Data), % Set params (e.g. size) before appending
-	send(Dialog, append(G,Position)).
+    (Type = spacer -> trace;true),
+        convert(Class,CClass),
+	new(@Name, CClass),
+	maplist(send(@Name), Data), % Set params (e.g. size) before appending
+	send(Dialog, append(@Name,Position)).
 
 about_atom(About) :-
         open('evostat.about', read, Handle),

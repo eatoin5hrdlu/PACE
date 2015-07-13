@@ -43,7 +43,8 @@ imageFile(Self, File:[name])      :-> send(Self,slot,imageFile, File).
 
 imageDirectory(Self, Path:[name]) :-> send(Self,slot,imageDirectory, Path).
 
-shape(Self, W:[int], H:[int]) :-> true.
+shape(Self, W:[int], H:[int]) :->
+	send(Self, size, size(W,H)).
 
 show(Self) :->
 	get(Self, imageDirectory, Path),
@@ -88,34 +89,6 @@ mix_colors(green,  _, orange) :- !.
 mix_colors( _, green, orange).
 
 compute(_) :-> true.
-
-myRedraw(Self) :->
-        get(Self, temperature, Temp),
-	trace,
-	(Temp > 0.0 ->
-	      get(Self, temperature_t, Target_Temp),
-	      TmStr = ['Tm ', Target_Temp,'/',Temp,'\n'],
-	      range_color(Target_Temp, Temp, ColorTm)
-	; TmStr = []
-        ),
-        get(Self, od600, OD),
-	(OD > 0.0 ->
-	      get(Self, od600_t, Target_OD),
-	      ODStr = ['OD600 ', Target_OD,'/',OD,'\n'],
-	      range_color(Target_OD, OD, ColorOD)
-	; ODStr = []
-        ),
-        get(Self, fluorescence, Lux),
-	(Lux > 0.0 ->
-	      get(Self, fluorescence_t, Target_Lux),
-	      LuxStr = ['Lux ', Target_Lux,'/',Lux,'\n']
-	; LuxStr = []
-        ),
-	mix_colors(ColorTm, ColorOD, Color),
-	send(Self, colour(Color)),
-	flatten([TmStr,ODStr,LuxStr], Flat),
-	concat_atom(Flat, Label),
-	send(Self, label, Label).
 
 shape(Self, W:[int], H:[int]) :->
 	   send(Self, size(size(W,H))).
@@ -184,3 +157,58 @@ bt(Self, BtAddr) :->
 
 :- pce_end_class.
 
+:- pce_begin_class(cellstat, ebutton).
+
+update(Self) :->
+        get(Self,slot,temperature_t,Target),
+        get(Self,slot,temperature,Temp),
+	range_color(Target, Temp, Tc),
+        get(Self,slot,od600_t,ODTarget),
+        get(Self,slot,od600,OD),
+	range_color(ODTarget, OD, ODc),
+	mix_colors(Tc,ODc,Color),
+	send(Self, colour(Color)),
+        concat_atom(['Temperature ', Target, ' / ',Temp,'\n',
+ 		'Turbidity   ', ODTarget,' / ', OD, '\n'], Label),
+	send(Self, label, Label).
+
+:- pce_end_class.
+
+:- pce_begin_class(lagoon, ebutton).
+
+update(Self) :-> 
+        get(Self,slot,temperature_t,Target),
+        get(Self,slot,temperature,Temp),
+	range_color(Target, Temp, Color),
+	send(Self, colour(Color)),
+        concat_atom(['Temperature\n', Target, 'C / ',Temp,' C\n'], Label),
+	send(Self, label, Label).
+
+:- pce_end_class.
+
+:- pce_begin_class(pumps, ebutton).
+
+update(_Self) :-> true.
+
+:- pce_end_class.
+
+
+:- pce_begin_class(sampler, ebutton).
+
+update(_Self) :-> true.
+
+:- pce_end_class.
+
+:- pce_begin_class(spacer, box).
+
+initialise(Self, Width:[int], Height:[int]) :->
+        send_super(Self, initialise(Width, Height)).
+
+color(Self, Color) :->
+	send(Self, colour, colour(Color)),
+	send(Self, fill_pattern, colour(Color)).
+       
+
+update(_Self) :-> true.
+
+:- pce_end_class.
