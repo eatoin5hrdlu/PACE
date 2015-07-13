@@ -1,0 +1,186 @@
+#!/usr/bin/xpce
+:- use_module(library(time)).
+:- use_module(library(pce)).
+:- use_module(library(process)).
+:- use_module(library(charsio)).
+:- use_module(library(helpidx)).
+:- use_module(library(lists)).
+:- use_module(library(ctypes)).
+
+:- use_module(library(time)).
+:- use_module(library(process)).
+	
+repeat(N) :-
+             integer(N), % type check
+             N>0,        % value check 
+             repeat1(N).
+
+repeat1(1) :- !.
+repeat1(_).
+repeat1(N) :- M is N-1, repeat1(M).
+
+:- (current_prolog_flag(arch,'i386-win32')->BT=foreign(plblue);BT=plblue),
+   load_foreign_library(BT), writeln('plblue (BLUETOOTH) loaded').
+
+
+:- pce_begin_class(snapshot, label).
+
+variable(imageDirectory, name, get, "Current Image Path" ).
+variable(imageFile,      name, get, "Current Image Filename" ).
+
+initialise(Self, Label:[name]) :->
+	"Initialise the image area"::
+        send_super(Self, initialise(Label)),
+	send(Self, slot, imageFile, 'opencvlevel.jpg'),
+	send(Self, slot, imageDirectory, './'),
+	send(Self, size, size(640,480)),
+	new(I, image('./opencvlevel.jpg')),
+	send(Self, selection, I).
+%	send(Self, slot, width, Width),
+%	send(Self, slot, height, Height).
+
+imageFile(Self, File:[name])      :-> send(Self,slot,imageFile, File).
+
+imageDirectory(Self, Path:[name]) :-> send(Self,slot,imageDirectory, Path).
+
+shape(Self, W:[int], H:[int]) :-> true.
+
+show(Self) :->
+	get(Self, imageDirectory, Path),
+	get(Self, imageFile, Filename),
+	concat_atom([Path,Filename], Where),
+	new(I, image(Where)),
+	send(Self, selection, I).
+:- pce_end_class.
+
+:- pce_begin_class(ebutton, button).
+
+variable(socket,  int, get, "Bluetooth Socket" ).
+variable(btaddr, name, get, "Bluetooth MAC Address" ).
+variable(reply, name, get, "Last Message from Device" ).
+
+% Current Settings
+variable(od600,       real, get, "Optical Density (600nM)").
+variable(temperature, real, get, "Temperature").
+variable(fluorescence,real, get, "Fluorescence").
+
+% Target Settings
+variable(od600_t,       real, get, "Target Optical Density (600nM)").
+variable(temperature_t, real, get, "Target Temperature").
+variable(fluorescence_t, real, get, "Target Fluorescence").
+
+initialise(B, Label:[name]) :->
+	"Initialise the button and connect to device"::
+        send_super(B, initialise(Label)),
+	send(B, slot, temperature_t, 37.0),
+	send(B, slot, od600_t, 0.4),
+	send(B, slot, temperature, 0.0),
+	send(B, slot, od600, 0.0),
+	send(B, slot, fluorescence_t, 0.2),
+	send(B, slot, fluorescence, 0.0),
+	send(B, slot, socket, -1),
+	send(B, slot, btaddr, discover).
+
+mix_colors(   C,   C,      C) :- !.
+mix_colors(   _,blue, purple) :- !.
+mix_colors(blue,   _, purple) :- !.
+mix_colors(green,  _, orange) :- !.
+mix_colors( _, green, orange).
+
+compute(_) :-> true.
+
+myRedraw(Self) :->
+        get(Self, temperature, Temp),
+	trace,
+	(Temp > 0.0 ->
+	      get(Self, temperature_t, Target_Temp),
+	      TmStr = ['Tm ', Target_Temp,'/',Temp,'\n'],
+	      range_color(Target_Temp, Temp, ColorTm)
+	; TmStr = []
+        ),
+        get(Self, od600, OD),
+	(OD > 0.0 ->
+	      get(Self, od600_t, Target_OD),
+	      ODStr = ['OD600 ', Target_OD,'/',OD,'\n'],
+	      range_color(Target_OD, OD, ColorOD)
+	; ODStr = []
+        ),
+        get(Self, fluorescence, Lux),
+	(Lux > 0.0 ->
+	      get(Self, fluorescence_t, Target_Lux),
+	      LuxStr = ['Lux ', Target_Lux,'/',Lux,'\n']
+	; LuxStr = []
+        ),
+	mix_colors(ColorTm, ColorOD, Color),
+	send(Self, colour(Color)),
+	flatten([TmStr,ODStr,LuxStr], Flat),
+	concat_atom(Flat, Label),
+	send(Self, label, Label).
+
+shape(Self, W:[int], H:[int]) :->
+	   send(Self, size(size(W,H))).
+
+od(Self, OD600:[real]) :->
+	 send(Self, slot, od600, OD600).
+
+temp(Self, Temp:[real]) :->
+	 send(Self, slot, temperature, Temp).
+
+command(Self, Cmd) :->
+	"Send command to Bluetooth Socket and save Reply"::
+        get(Self, socket, Socket),
+	( bt_converse(Socket, Cmd, Reply)
+	  -> send(Self, slot, reply, Reply)
+	  ; send(Self, slot, reply, failed)
+	).
+
+btaddr(Self, Addr:[name]) :->
+	send(Self, slot, btaddr, Addr),
+	send(Self, connect).
+
+connect(Self) :->
+	"Connect (or re-connect) the Bluetooth channel"::
+	get(Self, btaddr, Addr),
+	get(Self, socket, OldSocket),
+        ( OldSocket > -1 -> bt_close(OldSocket) ; true),
+	repeat(5),
+		bt_socket(Addr, BTSocket),
+	( BTSocket > -1; sleep(1),fail ),
+	!, % Don't need the cut, methods are deterministic
+	send(Self, slot, socket, BTSocket).
+
+insertIP(Cmd, IP, Result) :-
+        atom_codes(Cmd, Cs),
+        atom_codes(IP, ICs),
+	[AT] = "@",
+        append(Front,[AT|Rest],Cs),
+	flatten([Front,ICs,Rest],CommandCs),
+	atom_codes(Result,CommandCs).
+
+ip(Self, IP:[name]) :->
+	 socket(IP, Socket),
+	 send(Self, slot, ipsocket, Socket).
+
+mac_wget(Self, MAC:[name], Cmd:[name]) :->
+        getIPfromMAC(MAC,IP),
+	send(Self, wget, wget(IP, Cmd)).
+
+wget(Self, IP:[name], Cmd:[name]) :->
+        insertIP(Cmd,IP,Command),
+	send(Self, slot, wget, Command).
+
+mac(Self, MAC:[name]) :->
+        getIPfromMAC(MAC,IP),
+	send(Self, ip, ip(IP)).
+
+bt(Self, BtAddr) :->
+	get(Self, socket, OldSocket),
+        ( OldSocket > -1 -> bt_close(OldSocket) ; true),
+	repeat(5),
+		bt_socket(BtAddr,Socket),
+	( Socket > -1; sleep(1),fail ),
+	!,
+	send(Self,slot,socket,Socket).
+
+:- pce_end_class.
+
