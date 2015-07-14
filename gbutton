@@ -197,7 +197,19 @@ update(Self) :->
 
 :- pce_begin_class(pumps, ebutton).
 
-update(_Self) :-> true.
+variable(pumpStatus, name, get, "Pump/Valve status").
+
+initialise(B, Label:[name]) :->
+        "Initialise the lagoon"::
+        send_super(B, initialise(Label)),
+	send(B, slot, pumpStatus,
+
+	'On/Closed     On/Closed     Off/Open     Off/Closed    Off/Closed').
+
+update(Self) :->
+        get(Self,slot, pumpStatus, Status),
+	send(Self, label, Status).
+
 
 :- pce_end_class.
 

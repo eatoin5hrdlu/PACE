@@ -222,7 +222,7 @@ range_color(Target, Current, Color) :-
     Min is Target - Delta,
     (  Current > Max -> Color = red
      ; Current < Min -> Color = blue
-     ;                  Color = green
+     ;                  Color = darkgreen
     ).
 
 update10(W) :->
@@ -305,7 +305,7 @@ buffon([
 
 darwin([
  cellstat(cellstat,    below, [ shape(240,110),font(font(times,roman,22))]),
- pumps(      pumps, next_row, [ btaddr('98:D3:31:40:1D:A4'), shape(300,50),LF]),
+ pumps(      pumps, next_row, [ btaddr('98:D3:31:40:1D:A4'), shape(520,50),LF]),
  spacer(        x1, next_row, [color(blue)]),
  snapshot(     cam, next_row, [ shape(640,480),image('opencvlevel.jpg')]),
  spacer(        x2, next_row, []),
@@ -314,7 +314,7 @@ darwin([
  lagoon(   lagoon2, right, [ temp(37.9), od(0.4), LS, LF]),
  lagoon(   lagoon3, right, [ temp(37.9), od(0.4), LS, LF]),
  lagoon(   lagoon4, right, [ temp(37.9), od(0.4), LS, LF]),
- spacer(        x3, next_row, [color(green)]),
+ spacer(        x3, next_row, [color(darkgreen)]),
  sampler(autosampler, next_row, [ shape(400,40),font(font(times,roman,20)) ])
 ]) :-
  LS = shape(135,90),
