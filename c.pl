@@ -135,8 +135,8 @@ initialise(W, Label:[name]) :->
 		send_list(File, append,
 				  [ menu_item(load,
 					      message(W, load, @finder?file)),
-				    menu_item(save,
-					      message(W, save_buffer)),
+				    menu_item(ok,
+					      message(W, return, ok)),
 				    menu_item(quit,
 					      message(W, quit))
 				  ]),
@@ -344,6 +344,5 @@ c(Name) :-
     new(@gui, evostat(Name)),
     send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
     get(@gui, prompt, Reply),
-    (Reply = quit -> send(@gui, destroy); true ),
-    halt.
+    (Reply = quit -> send(@gui, destroy); true ).
 
