@@ -13,6 +13,7 @@
 :- [gbutton].
 
 :- dynamic target_value/2, current_value/4, current_value/2.
+:- dynamic component/2.
 
 %
 % System Configuration
@@ -35,11 +36,11 @@
 
 % Create a dialog for this EvoStat
 
-screen(aristotle, 520, 760, point(50,50)).
-screen(darwin, 460, 600, point(50,50)).
+screen(aristotle, 680, 800, point(50,50)).
+screen(darwin, 680, 900, point(50,50)).
 
 resize(Thing) :-
-    screen(_,_,Height,_,_),
+    screen(_,_,Height,_),
     BH is Height/16,
     BW is 2*BH,
     send(Thing, size(size(BW,BH))).
@@ -86,7 +87,7 @@ row_item(cellstat(Name, text(Evo), size(Width,Height)),@Name) :-
 
 row_item(spacer(Color,Height), @Spacer) :-
     atom(Color),
-    screen(_,Width,_H,_Location,_Mitems),
+    screen(_,Width,_H,_Location),
     NWid is Width - 30,
     new(@Spacer, box(NWid,Height)),
     send(@Spacer, colour, Color),
@@ -101,7 +102,7 @@ row_item(image(Name,File),@Name) :-
     free(@Name),
     new(@Name, label(Name)),
     new(I, image(File)),
-%    screen(_,Width,_,_,_),
+%    screen(_,Width,_,_),
 %    NewWidth is Width - Width/10,
 %    NewHeight is integer(Width*0.675),
 %    get(I, size, Size),
@@ -145,12 +146,13 @@ initialise(W, Label:[name]) :->
 					      message(@display, inform, About))
 				  ]),
 	 call(Label, Components),
+         findall(_,(component(_,Obj),free(Obj)),_), % Clear out previous
 	 maplist(create(@gui), Components),
-	  new(Msg1, message(W, update)),
-	  free(@ut),
-	  send(W, attribute, attribute(timer, new(@ut, timer(10.0, Msg1)))),
-	  send(@ut, start),
-          send_super(W, open, Location).
+	 new(Msg1, message(W, update10)),
+	 free(@ut),
+	 send(W, attribute, attribute(timer, new(@ut, timer(4.0, Msg1)))),
+	 send(@ut, start),
+         send_super(W, open, Location).
 
 c5(_W) :-> "User pressed the CellStat button":: writeln(cellstat).
 
@@ -223,14 +225,12 @@ range_color(Target, Current, Color) :-
      ;                  Color = green
     ).
 
-update(W) :->
+update10(W) :->
     get(W, graphicals, Chain),
     chain_list(Chain, CList),
-    member(Cell, CList),
-    Cell =.. [@, Component],
-    trace,
-    memberchk(Component, [c5,p6,l1,l2,l3,l4,a9]),
-    send(Cell, update),
+    member(Object, CList),
+    component(_,Object),        % If one has been created
+    send(Object, update),
     fail.
     
 :- pce_end_class.
@@ -281,7 +281,7 @@ prompt(W, Value:name) :<-
 
 aristotle([
   cellstat(c5, right,
-   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(40,20)]),
+   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(200,80)]),
   snapshot(c9, right, [ shape(640,480) ]),
   lagoon(l1,  next_row,
    [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
@@ -304,37 +304,33 @@ buffon([
 ]).
 
 darwin([
-  cellstat(c5, below,    [ shape(130,60)]),
- pumps(p6,  next_row,
-   [ btaddr('98:D3:31:40:1D:A4'), shape(300,50) ]),
- spacer(x1, next_row, [color(blue)]),
- snapshot(c9, next_row,   [ shape(640,480) ]),
- spacer(x2, next_row, [color(blue)]),
- lagoon(l1, next_row,
-   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(120,60)]),
- lagoon(l2, right,
-   [ temp(37.9), od(0.4), shape(120,60)]),
- lagoon(l3, right,
-   [ temp(37.9), od(0.4), shape(120,60)]),
- lagoon(l4, right,
-   [ temp(37.9), od(0.4), shape(120,60)]),
- spacer(x3, next_row, [color(green)]),
- sampler(a9,  next_row,   [ shape(400,50) ])
-]).
+ cellstat(cellstat,    below, [ shape(240,110),font(font(times,roman,22))]),
+ pumps(      pumps, next_row, [ btaddr('98:D3:31:40:1D:A4'), shape(300,50),LF]),
+ spacer(        x1, next_row, [color(blue)]),
+ snapshot(     cam, next_row, [ shape(640,480),image('opencvlevel.jpg')]),
+ spacer(        x2, next_row, []),
+ lagoon(   lagoon1, next_row, [ btaddr('98:D3:31:70:2B:70'),
+                             temp(37.9), od(0.4), LS, LF]),
+ lagoon(   lagoon2, right, [ temp(37.9), od(0.4), LS, LF]),
+ lagoon(   lagoon3, right, [ temp(37.9), od(0.4), LS, LF]),
+ lagoon(   lagoon4, right, [ temp(37.9), od(0.4), LS, LF]),
+ spacer(        x3, next_row, [color(green)]),
+ sampler(autosampler, next_row, [ shape(400,40),font(font(times,roman,20)) ])
+]) :-
+ LS = shape(135,90),
+ LF = font(font(times,roman,18)).
 
-convert(spacer(_),spacer(NWid,8)) :- !,
-                                  screen(_,Width,_H,_Location),
-                                  NWid is Width - 30.
-convert(Same,Same).
+% Initializers are extra arguments to the constructor
+% Data is a list of messages to continue initializing the object
 
 create(Dialog, Component) :-
 	Component =.. [Type, Name, Position, Data],
-	Class =.. [Type, Name],
-    (Type = spacer -> trace;true),
-        convert(Class,CClass),
-	new(@Name, CClass),
-	maplist(send(@Name), Data), % Set params (e.g. size) before appending
-	send(Dialog, append(@Name,Position)).
+	free(@Name),
+	Class =.. [Type,Name],
+	new(@Name, Class),
+	maplist(send(@Name), Data), % Process all before appending
+	send(Dialog, append(@Name, Position)),
+        assert(component(Name,@Name)).
 
 about_atom(About) :-
         open('evostat.about', read, Handle),
@@ -344,10 +340,10 @@ about_atom(About) :-
 c :- current_prolog_flag(argv,[_,Name|_]) -> c(Name) ; c(darwin).
 
 c(Name) :-
-  free(@gui),
-  new(@gui, evostat(Name)),
-  send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
-  get(@gui, prompt, Reply),
-  (Reply = quit -> send(@gui, destroy); true ),
-  halt.
+    free(@gui),
+    new(@gui, evostat(Name)),
+    send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
+    get(@gui, prompt, Reply),
+    (Reply = quit -> send(@gui, destroy); true ),
+    halt.
 
