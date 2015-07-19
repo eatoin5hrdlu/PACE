@@ -10,6 +10,10 @@
 :- use_module(library(time)).
 :- use_module(library(process)).
 	
+wget('C:/cygwin/winavr/utils/bin/wget.exe',
+     ['-O','evostat.jpg',
+      'http://172.16.3.123:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould']).
+
 repeat(N) :-
              integer(N), % type check
              N>0,        % value check 
@@ -32,9 +36,9 @@ initialise(Self, Label:[name]) :->
 	"Initialise the image area"::
         send_super(Self, initialise(Label)),
 	send(Self, size, size(640,380)),
-	send(Self, slot, imageFile, 'opencvlevel.jpg'),
+	send(Self, slot, imageFile, 'mypic.jpg'),
 	send(Self, slot, imageDirectory, './'),
-	new(I, image('./opencvlevel.jpg')),
+	new(I, image('./mypic.jpg')),
 	send(Self, selection, I).
 
 image(Self, File:[name])      :->
@@ -49,8 +53,11 @@ update(Self) :->
 	get(Self, imageDirectory, Path),
 	get(Self, imageFile, Filename),
 	concat_atom([Path,Filename], Where),
+	wget(Command, Args),
+	process_create(Command, Args, [ process(_PID)]),
 	new(I, image(Where)),
 	send(Self, selection, I).
+
 :- pce_end_class.
 
 :- pce_begin_class(ebutton, button).

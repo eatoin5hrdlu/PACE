@@ -1,13 +1,16 @@
-#!C:/Python27/python -u
 #!C:/cygwin/Python27/python -u
+#!C:/Python27/python -u
 #!/usr/bin/python -u
 import sys, os, time, subprocess, re
 import base64, urllib2
- 
+from os  import popen
+
 import numpy as np
 import cv2
 import cv2.cv as cv
 import evocv
+
+gdb = { 'layout' : None  }
 
 Lagoon = {}
 Levels = {}
@@ -126,7 +129,7 @@ class ipCamera(object):
             if (self.params['rotate']) :
                 return self.rotateImage(cv2.imdecode(img1,1), self.params['rotate'])
             else :
-                return(cv2.imdecode(img3, 1))
+                return(cv2.imdecode(img1, 1))
         return None
 
     def lagoonImage(self):
@@ -166,7 +169,7 @@ class ipCamera(object):
         colors = {0:"blue", 1:"green", 2:"red" }
         cv2.putText(img,colors[color],(10,80),cv2.FONT_HERSHEY_PLAIN,4.0,(240,80,200),2)
 
-    def updateLevels(self,pause=1000) :
+    def updateLevels(self,pause=100) :
         """Levels are a percentage of the lagoon height (specified at the top of this file)
         To use mL as our standard unit of liquid level, we should add scaling param to evo.settings"""
         global Lagoon
@@ -177,7 +180,7 @@ class ipCamera(object):
             for k in Lagoon.keys():
                 bb = Lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
-                print "SHAPE " + str(frame.shape)
+                print k + "   SHAPE " + str(frame.shape)
                 print bb
                 print "SHAPE " + str(subi.shape)
                 lvl = self.evocv.level(subi)
@@ -202,12 +205,13 @@ class ipCamera(object):
         print "Levels " + str(Levels)
         return Levels
 
-    def updateLagoons(self,pause=1000) :
+    def updateLagoons(self,pause=100) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         numblobs = 0
-        needed = 2
+        needed = ipcam.params['NumLagoons']
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
+            cv2.imwrite('mypic.jpg', frame)
             print "Frame shape:" + str(frame.shape)
             bbs = self.evocv.blobs(frame,pause)    # Find the green blobs
             sbbs = self.blobs2lagoons(bbs)     # Sort left to right interpret as lagoon rect
@@ -321,7 +325,7 @@ def read_settings(cFile):
 def setupCamera(setup) :
     cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
     if cv2.__dict__['moveWindow'] != None :
-        cv2.moveWindow("camera", 100, 200)
+        cv2.moveWindow("camera", 100, 0)
     else :
         print "cv2 does not contain moveWindow. Update your OpenCV installation."
     cam = ipCamera(setup)
@@ -339,16 +343,88 @@ def setupCamera(setup) :
 configFile = "evo.settings"
 #defaultConfig = 'museum'
 #defaultConfig = 'usb'
-defaultConfig = 'sandstone'
+#defaultConfig = 'sandstone'
+defaultConfig = 'museumo'
+
+def load(name, file, default_dict) :
+	try:
+		gdb[name] = eval(open(file).read())
+	except:
+		print file + " not found: Using default coordinates"
+		gdb[name] = default_dict
+
+# getFluor(ipcam, 'flux.config')
+def getFluor(ipcam, file) :
+    basefile = './baseline.jpg'
+    baseline = None
+    fluxfile = './flux'
+    if (gdb['layout'] == None) :
+	load('layout', file, {
+            'LagoonRegion' : (650,180,940,620),
+            'Lagoon1' :   (67, 13, 60, 210),
+            'Lagoon2' :  (151, 14, 60, 210),
+            'Lagoon3' :   (226, 10, 59, 210),
+            'Lagoon4' :   (299, 16, 60, 210),
+            'NumLagoons'   :    4,
+            'Frames'       :   80,
+            'lagoonHeight' : 210,    # Can be thought of as the divisor for levelScale
+            'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+            'camera'       : 'outdoor',
+            'rotate'       : 90,
+            'MAC'          : "00:62:6e:4f:17:d9",
+            'defaultIP'    : "172.16.3.123",
+            'userpwd'      :  "&usr=scrapsec&pwd=lakewould",
+            'brightness'   :  60,   # 0-100 for outdoor camera
+            'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
+            'contrast'     :  30,   # 0-100 for outdoor camera
+            'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
+            'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould"
+            })
+
+    result = None
+    cntr = 0
+    if (os.path.exists(basefile)) :
+        baseline = cv2.split(cv2.imread(basefile))[1]
+    elif ( not 'baseline' in sys.argv) :
+        print "Run [flux baseline] to create dark heat image file"
+    frames = gdb['layout']['Frames']
+    orig = ipcam.grab()
+    fluor = orig[:,:,1]               # FIRST GREEN IMAGE
+    while(cntr < frames) :
+        orig = ipcam.grab()
+        (bl, gr, rd) = cv2.split(orig)
+        fluor = cv2.add(fluor, cv2.subtract(gr,cv2.add(bl/2,rd/2)))
+        cv2.imshow("camera",fluor)
+        if cv.WaitKey(10) == 27:
+                exit()
+        cntr = cntr + 1
+
+    if (baseline == None and len(sys.argv)>1 and sys.argv[1] == 'baseline') :
+        print "Creating baseline file"
+        cv2.imwrite(basefile, fluor)
+    else :
+        fluor = cv2.subtract(fluor,baseline)
+    ffile = open(fluxfile,'w')
+    for l in [ 'Lagoon1', 'Lagoon2', 'Lagoon3', 'Lagoon4' ]:
+        (x, y, w, h) = gdb['layout'][l]
+        ffile.write(l + "(" + str(cv2.mean(fluor[y:y+h,x:x+w])[0]) + ").\n")
+    ffile.close()
 
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
+    levelfile = './levels'
     read_settings(configFile)
-    config = sys.stdin.readline()[:-1]
-    if not(config in settings.keys()) :
-        config = defaultConfig
-        print "Using " + config + " configuration"
+#    config = sys.stdin.readline()[:-1]
+#    if not(config in settings.keys()) :
+    config = defaultConfig
+    print "Using " + config + " configuration"
+
     ipcam = setupCamera(config)  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
+    if ( 'fluor' in sys.argv) :
+        getFluor(ipcam, 'flux.config')
+        print 'bailing out early'
+        exit(0)
+
     retry = True
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
     for f in range(10) :
@@ -362,15 +438,18 @@ if __name__ == "__main__" :
             print "Image grab returned None in __main__"
             exit()
     print "done waiting for brightness to settle"
+    ffile = open(levelfile,'a')
     while(retry) :
         retry = False
-        ipcam.updateLagoons() # blob contours shown for 4 seconds
-        for i in range(20) :
+        ipcam.updateLagoons(pause=10) # blob contours shown for 4 seconds
+        for i in range(5) :
             if ( ipcam.updateLevels(pause=100) == None) :
                 print "Go back to blob detection and try again"
                 retry = True
                 break
-    print "Final Levels: " + str(Levels)
+            for k in Levels.keys() :
+                ffile.write(k + "(" + str(Levels[k]) + ").\n")
+    ffile.close()
     if cv.WaitKey(5000) == 27:
         exit()
 

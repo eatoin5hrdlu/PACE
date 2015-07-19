@@ -150,7 +150,7 @@ initialise(W, Label:[name]) :->
 	 maplist(create(@gui), Components),
 	 new(Msg1, message(W, update10)),
 	 free(@ut),
-	 send(W, attribute, attribute(timer, new(@ut, timer(4.0, Msg1)))),
+	 send(W, attribute, attribute(timer, new(@ut, timer(10.0, Msg1)))),
 	 send(@ut, start),
          send_super(W, open, Location).
 
@@ -306,9 +306,10 @@ buffon([
 %  lagoon(   lagoon1, next_row, [ btaddr('98:D3:31:70:2B:70'),
 darwin([
  cellstat(cellstat,  below,   [ shape(240,60),font(font(times,roman,18))]),
- pumps( pumprail, next_row,   [  btaddr('98:D3:31:70:2B:70')]),
+% pumps( pumprail, next_row,   [  btaddr('98:D3:31:70:2B:70')]),
+ pumps( pumprail, next_row,   [  ]),
  spacer(        x1, next_row, [color(blue)]),
- snapshot(     cam, next_row, [ shape(640,380),image('opencvlevel.jpg')]),
+ snapshot(     cam, next_row, [ shape(640,380),image('./opencvlevel.jpg')]),
  spacer(        x2, next_row, []),
  lagoon(   lagoon1, next_row, [
                              temp(37.9), od(0.4), LS, LF]),
