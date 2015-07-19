@@ -1,6 +1,6 @@
-#!/usr/bin/python -u
-#!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
+#!C:/cygwin/Python27/python -u
+#!/usr/bin/python -u
 import sys, os, time, subprocess, re
 import base64, urllib2
  
@@ -155,9 +155,12 @@ class ipCamera(object):
             picked=cv2.add(picked,cv2.subtract(temp[:,:,color],halfothers))
             if not frame == None :
                 labelImage(picked,color)
-                cv2.imshow("camera", picked)
-            if cv.WaitKey(10) == 27:
-                return
+                if (picked != None) :
+                    cv2.imshow("camera", picked)
+                    if cv.WaitKey(10) == 27:
+                        return
+                else :
+                    print "picked slice was None"
 
     def labelImage(self, img, color) :
         colors = {0:"blue", 1:"green", 2:"red" }
@@ -174,6 +177,8 @@ class ipCamera(object):
             for k in Lagoon.keys():
                 bb = Lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
+                print "SHAPE " + str(frame.shape)
+                print bb
                 print "SHAPE " + str(subi.shape)
                 lvl = self.evocv.level(subi)
                 if (lvl == None or lvl == 1000) :
@@ -183,9 +188,12 @@ class ipCamera(object):
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
                     goodRead = goodRead + 1
                     self.drawLagoons(frame)
-                    cv2.imshow("camera", frame)
-                    if cv.WaitKey(pause) == 27:
-                        exit()
+                    if (frame != None) :
+                        cv2.imshow("camera", frame)
+                        if cv.WaitKey(pause) == 27:
+                            exit()
+                    else :
+                          print "frame was None after drawLagoons!?"  
                 else :
                     print str(lvl) + " out of range :" + str(bb)
                     return None
@@ -213,9 +221,12 @@ class ipCamera(object):
                 print "Need at least " + str(needed) + " bbs, but got " + str(len(sbbs))
                 for bb in sbbs:
                     cv2.rectangle(frame,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),(0,0,255),2)
-                cv2.imshow("camera",frame)
-                if cv.WaitKey(pause) == 27:
-                    exit()
+                if (frame != None) :
+                    cv2.imshow("camera",frame)
+                    if cv.WaitKey(pause) == 27:
+                        exit()
+                else :
+                    print "frame was None after drawing bbs"
                     
     def blobs2lagoons(self,bbs) :
         """The bottom edges of identified blobs should line up.
@@ -250,9 +261,12 @@ class ipCamera(object):
             cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],1)
             cv2.circle(image,(bb[0],bb[1]),5,cler[(i+1)%4],2)
             i = i + 1
-        cv2.imshow("camera", image)
-        if cv.WaitKey(pause) == 27:
-            return
+        if (image != None) :
+            cv2.imshow("camera", image)
+            if cv.WaitKey(pause) == 27:
+                return
+        else :
+            print "image was None in drawLagoons"
 
     def bioBlobs(self, color, (x1,y1,x2,y2)) :
         """Bio-luminescence detection. Sum images until MAXFRAMES and note saturation points"""
@@ -325,7 +339,7 @@ def setupCamera(setup) :
 configFile = "evo.settings"
 #defaultConfig = 'museum'
 #defaultConfig = 'usb'
-defaultConfig = 'splatspace'
+defaultConfig = 'sandstone'
 
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
