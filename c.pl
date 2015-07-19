@@ -309,7 +309,7 @@ darwin([
 % pumps( pumprail, next_row,   [  btaddr('98:D3:31:70:2B:70')]),
  pumps( pumprail, next_row,   [  ]),
  spacer(        x1, next_row, [color(blue)]),
- snapshot(     cam, next_row, [ shape(640,380),image('./opencvlevel.jpg')]),
+ snapshot(     cam, next_row, [ shape(640,380),image('mypic.jpg')]),
  spacer(        x2, next_row, []),
  lagoon(   lagoon1, next_row, [
                              temp(37.9), od(0.4), LS, LF]),

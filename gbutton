@@ -10,8 +10,8 @@
 :- use_module(library(time)).
 :- use_module(library(process)).
 	
-wget('C:/cygwin/winavr/utils/bin/wget.exe',
-     ['-O','evostat.jpg',
+wget('/usr/bin/wget',
+     ['-O','mypic.jpg',
       'http://172.16.3.123:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould']).
 
 repeat(N) :-
@@ -38,8 +38,9 @@ initialise(Self, Label:[name]) :->
 	send(Self, size, size(640,380)),
 	send(Self, slot, imageFile, 'mypic.jpg'),
 	send(Self, slot, imageDirectory, './'),
-	new(I, image('./mypic.jpg')),
-	send(Self, selection, I).
+	free(@si),
+	new(@si, image('mypic.jpg')),
+	send(Self, selection, @si).
 
 image(Self, File:[name])      :->
 	send(Self,slot,imageFile, File).
@@ -53,10 +54,17 @@ update(Self) :->
 	get(Self, imageDirectory, Path),
 	get(Self, imageFile, Filename),
 	concat_atom([Path,Filename], Where),
+	writeln(newimge(Where)),
+	send(Self, selection, None),
+	free(@si),
+	new(@si, image(Where)),
+	writeln(gotnewimge(Where)),
+	send(Self, selection, @si),
+	writeln(selectionset(Where)),
 	wget(Command, Args),
-	process_create(Command, Args, [ process(_PID)]),
-	new(I, image(Where)),
-	send(Self, selection, I).
+	writeln(wgetcmd(Command,Args)),
+	process_create(Command, Args, [ detached(true), process(PID)]),
+	writeln(pidlaunched(PID)).
 
 :- pce_end_class.
 
