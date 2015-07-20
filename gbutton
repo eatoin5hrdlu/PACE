@@ -9,10 +9,21 @@
 
 :- use_module(library(time)).
 :- use_module(library(process)).
-	
-wget('/usr/bin/wget',
-     ['-O','mypic.jpg',
-      'http://172.16.3.123:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould']).
+
+:- dynamic tog/1.
+
+
+% WGET will use alternate filenames so we update Image properly
+% and are never caught reading a file that hasn't been fully written
+
+toggle('mypic1.jpg','mypic2.jpg') :- tog(2), retract(tog(2)),assert(tog(1)).
+toggle('mypic2.jpg', 'mypic1.jpg') :- tog(1), retract(tog(1)),assert(tog(2)).
+
+wget( OtherFile,
+      '/usr/bin/wget',
+      ['-q', '-O',File,
+      'http://192.168.2.117:88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould']):-
+      toggle(File,OtherFile).
 
 repeat(N) :-
              integer(N), % type check
@@ -38,9 +49,9 @@ initialise(Self, Label:[name]) :->
 	send(Self, size, size(640,380)),
 	send(Self, slot, imageFile, 'mypic.jpg'),
 	send(Self, slot, imageDirectory, './'),
-	free(@si),
-	new(@si, image('mypic.jpg')),
-	send(Self, selection, @si).
+	new(I, image('mypic.jpg')),
+	send(Self, selection, I),
+	assert(tog(1)).
 
 image(Self, File:[name])      :->
 	send(Self,slot,imageFile, File).
@@ -52,19 +63,11 @@ shape(Self, W:[int], H:[int]) :->
 
 update(Self) :->
 	get(Self, imageDirectory, Path),
-	get(Self, imageFile, Filename),
-	concat_atom([Path,Filename], Where),
-	writeln(newimge(Where)),
-	send(Self, selection, None),
-	free(@si),
-	new(@si, image(Where)),
-	writeln(gotnewimge(Where)),
-	send(Self, selection, @si),
-	writeln(selectionset(Where)),
-	wget(Command, Args),
-	writeln(wgetcmd(Command,Args)),
-	process_create(Command, Args, [ detached(true), process(PID)]),
-	writeln(pidlaunched(PID)).
+	wget(OtherFile, Command, Args),
+	concat_atom([Path,OtherFile], Where),
+	new(I, image(Where)),
+	send(Self,selection,I),
+	process_create(Command, Args, [ detached(true), process(PID)]).
 
 :- pce_end_class.
 
@@ -334,7 +337,7 @@ initialise(Self, Label:[name]) :->
 	send(Self, append(@VStatus,right)).
 
 update(Self) :->
-	random_member(G,[pumpon,pumpoff,valveopen,valveclosed]),
+	random_permutation([pumpon,pumpoff,valveopen,valveclosed],[G|_]),
 	send(Self, G).
 
 pumpb(Self) :->

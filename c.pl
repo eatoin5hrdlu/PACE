@@ -150,7 +150,7 @@ initialise(W, Label:[name]) :->
 	 maplist(create(@gui), Components),
 	 new(Msg1, message(W, update10)),
 	 free(@ut),
-	 send(W, attribute, attribute(timer, new(@ut, timer(10.0, Msg1)))),
+	 send(W, attribute, attribute(timer, new(@ut, timer(4.0, Msg1)))),
 	 send(@ut, start),
          send_super(W, open, Location).
 
