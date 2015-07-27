@@ -1,6 +1,6 @@
+#!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
-#!/usr/bin/python -u
 import sys, os, time, subprocess, re
 import base64, urllib2
 from os  import popen
