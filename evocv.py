@@ -1,4 +1,4 @@
-import os, time
+import os, sys, time, traceback
 import numpy as np
 import cv2
 import cv2.cv as cv
@@ -64,12 +64,16 @@ class EvoCv(object):
                 print "contrast loop: Image is None"
             else :
                 image = cv2.add(cv2.multiply(image,scale),offset)
+        if (image == None) :
+            print "image is None after add/mulitply in contrast!"
         self.showUser(image,4000)
         (ret,img) = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
-        self.showUser(img,1000)
         if (ret == False) :
             print "Thresholding failed?"
             return None
+        if (img == None) :
+            print "img is None after binary threshold in contrast"
+        self.showUser(img,1000)
         # ret value is threshold (127.0) not True - False
         return img
 
@@ -82,10 +86,15 @@ class EvoCv(object):
                                                   img[:,:,(self.color+2)%3]),fraction))
     
     def showUser(self, image, pause=0) :
-        if (pause != 0) :
-            cv2.imshow("camera",image)
-            if cv.WaitKey(pause) == 27:
-                exit()
+        if (image != None) :
+            if (pause != 0) :
+                cv2.imshow("camera",image)
+                if cv.WaitKey(pause) == 27:
+                    exit()
+        else :
+            print "showUser called with null image (None)"
+            traceback.print_stack()
+
 
     def level(self, img, pause=0) :
         """Return the uppermost horizontal line in the image (e.g. liquid level)

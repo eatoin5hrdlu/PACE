@@ -1,7 +1,7 @@
 #!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
-import sys, os, time, subprocess, re
+import sys, os, time, socket, subprocess, re
 import base64, urllib2
 from os  import popen
 
@@ -27,12 +27,20 @@ Levels = {}
 
 class ipCamera(object):
     """USB, Wired Ethernet or WiFi IP camera discovery and control.
+       This class requires a file './hostname.settings' for now.
        This object contain the configuration information and knows about
        lagoon dimensions, lighting, angle of camera, etc."""
 
-    def __init__(self, location):
-        global settings
-        self.params = settings[location]
+    def __init__(self):
+        try :
+            f = open(socket.gethostname() + ".settings",'r')
+            self.params = eval(f.read())
+            f.close()
+        except :
+            print sys.exc_info()[0]
+            print "ipCamera object requires config file './<hostname>.settings'"
+            print "Create one by modifying the included 'template.settings'"
+            exit(1)
         self.camType = self.params['camera']
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
@@ -50,8 +58,23 @@ class ipCamera(object):
             self.req = urllib2.Request(self.url)
         self.evocv  = evocv.EvoCv(1,30,300)  # Detection of green(1) blobs 30-300 pixels wide
 
+    def nullImage(self, img, who) :
+        if (img == None) :
+            print who + " called with null image (None)"
+            traceback.print_stack()
+            return True
+        return False
+
     def rotateImage(self, img, angle):
-        return(cv2.flip(cv2.transpose(img),flipCode=0))
+        if (self.nullImage(img,"rotateImage 1")) :
+            return None
+        img = cv2.transpose(img)
+        if (self.nullImage(img,"rotateImage 2")) :
+            return None
+        img = cv2.flip(img,flipCode=0)
+        if (self.nullImage(img,"rotateImage 3")) :
+            return None
+        return(img)
 
 #        cv.Transpose(img,timg)
 #cv.SaveImage("rotated_clockwise.jpg", timg)
@@ -316,19 +339,13 @@ def write_settings(cFile):
     f.write(str(settings))
     f.close()
 
-def read_settings(cFile):
-    global settings
-    f = open(cFile, 'r')
-    settings = eval(f.read())
-    f.close()
-
-def setupCamera(setup) :
+def setupCamera() :
     cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
     if cv2.__dict__['moveWindow'] != None :
         cv2.moveWindow("camera", 100, 0)
     else :
         print "cv2 does not contain moveWindow. Update your OpenCV installation."
-    cam = ipCamera(setup)
+    cam = ipCamera()
     cam.brightness(cam.params['brightness'])
     cam.contrast(cam.params['contrast'])
     return cam
@@ -339,12 +356,6 @@ def setupCamera(setup) :
 # 'usb'         Any USB camera
 # 'musuem'      Wired indoor PTZ camera
 # 'sandstone'   Wireless outdoor camera (home ssid: milton)
-
-configFile = "evo.settings"
-#defaultConfig = 'museum'
-#defaultConfig = 'usb'
-#defaultConfig = 'sandstone'
-defaultConfig = 'museumo'
 
 def load(name, file, default_dict) :
 	try:
@@ -413,13 +424,7 @@ def getFluor(ipcam, file) :
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
     levelfile = './levels'
-    read_settings(configFile)
-#    config = sys.stdin.readline()[:-1]
-#    if not(config in settings.keys()) :
-    config = defaultConfig
-    print "Using " + config + " configuration"
-
-    ipcam = setupCamera(config)  # Initialize Camera 'usb' 'museum' 'splatwifi', etc.
+    ipcam = setupCamera()  # Needs the file  <hostname>.settings
     if ( 'fluor' in sys.argv) :
         getFluor(ipcam, 'flux.config')
         print 'bailing out early'

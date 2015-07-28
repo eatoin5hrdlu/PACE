@@ -1,0 +1,16 @@
+{
+        'LagoonRegion' : (720,260,1000,600),
+        'lagoonHeight' : 120,
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'outdoor',
+        'rotate'       : 90,
+        'NumLagoons'   :    4,
+        'MAC'          : "00:62:6e:4f:17:d9",
+        'userpwd'      : "&usr=scrapsec&pwd=lakewould",
+        'defaultIP'    : "172.16.3.123",
+        'brightness'   :  50,   # 0-100 for outdoor camera
+        'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
+        'contrast'     :  50,   # 0-100 for outdoor camera
+        'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
+        'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould"
+}
