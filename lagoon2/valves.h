@@ -25,15 +25,15 @@ class VALVES
 
   VALVES() {
     size = NUM_VALVES;
-    valve_time[0] = 4000;  // OUTFLOW DEFAULT
+    valve_time[0] = 35000;  // OUTFLOW DEFAULT
     valve_pin[0] =  5;
     valve_open[0] = 0;
 
-    valve_time[1] = 3000;  // HOSTCELL DEFAULT
+    valve_time[1] = 40000;  // HOSTCELL DEFAULT
     valve_pin[1] =  4;
     valve_open[1] = 0;
 
-    valve_time[2] = 1000;  // INDUCER 1 ( Arabinose )
+    valve_time[2] = 5000;  // INDUCER 1 ( Arabinose )
     valve_pin[2] =  3;
     valve_open[2] = 0;
 
@@ -41,7 +41,7 @@ class VALVES
     valve_pin[3] =  2;
     valve_open[3] = 0;
 
-    cycletime = 20000;    // Ten second cycle time
+    cycletime = 60000;    // One minute cycle time
   }
 
    void report() {

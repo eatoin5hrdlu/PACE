@@ -143,7 +143,7 @@ byte d;
 			auto_valve = true;
 			break;
 		case 'd':
-			valves.adjust(c2,-10);
+			valves.adjust(c2,-500);
 			break;
 		case 'h':
 			digitalWrite(HEATER, d);
@@ -181,7 +181,7 @@ byte d;
 			Serial.println(temp.celcius());
 			break;
 		case 'v':
-			valves.adjust(c2,10);
+			valves.adjust(c2,500);
 			break;
 		default:
 			return false;
