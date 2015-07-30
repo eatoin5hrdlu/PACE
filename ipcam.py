@@ -1,7 +1,7 @@
 #!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
-import sys, os, time, socket, subprocess, re
+import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
 from os  import popen
 
@@ -11,9 +11,11 @@ import cv2.cv as cv
 import evocv
 
 gdb = { 'layout' : None  }
-
-Lagoon = {}
+debug = ''
+lagoon = {}
 Levels = {}
+toggle = True
+seq = 1
 
 #
 # IPCamera knows about different IP cameras (as well as USB cams) and
@@ -32,15 +34,18 @@ class ipCamera(object):
        lagoon dimensions, lighting, angle of camera, etc."""
 
     def __init__(self):
-        try :
+        if (len(sys.argv) < 2 and 
+            os.path.isfile(socket.gethostname() + ".settings")):
             f = open(socket.gethostname() + ".settings",'r')
-            self.params = eval(f.read())
-            f.close()
-        except :
-            print sys.exc_info()[0]
+        elif (os.path.isfile(sys.argv[1] + ".settings")) :
+            print 'Using configuration in  ' + sys.argv[1] + '.settings'
+            f = open(sys.argv[1] + ".settings",'r')
+        else :
             print "ipCamera object requires config file './<hostname>.settings'"
             print "Create one by modifying the included 'template.settings'"
             exit(1)
+        self.params = eval(f.read())
+        f.close()
         self.camType = self.params['camera']
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
@@ -53,7 +58,7 @@ class ipCamera(object):
             if (self.ip == None) :
                 print self.params['MAC'], " is not a valid IP/MAC for a Camera"
                 exit(1)
-            self.url = "http://" + self.ip + self.params['picCmd']
+            self.url = "http://" + self.ip + self.params['picCmd'] + self.params['userpwd']
             print "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
         self.evocv  = evocv.EvoCv(1,30,300)  # Detection of green(1) blobs 30-300 pixels wide
@@ -195,22 +200,23 @@ class ipCamera(object):
     def updateLevels(self,pause=100) :
         """Levels are a percentage of the lagoon height (specified at the top of this file)
         To use mL as our standard unit of liquid level, we should add scaling param to evo.settings"""
-        global Lagoon
+        global debug
+        debug = debug + ">>>>>>>>>>updateLevels>>>>>>>>>>\n"
+        global lagoon
         goodRead = 0
         while (goodRead != 4) :
             goodRead = 0
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
-            for k in Lagoon.keys():
-                bb = Lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
+            for k in lagoon.keys():
+                bb = lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
-                print k + "   SHAPE " + str(frame.shape)
-                print bb
-                print "SHAPE " + str(subi.shape)
+                debug = debug + k + "   SHAPE " + str(frame.shape) + "\n"
+                debug = debug + str(bb) + "\nSHAPE " + str(subi.shape) + "\n"
                 lvl = self.evocv.level(subi)
                 if (lvl == None or lvl == 1000) :
-                    print "level detection failed"
+                    debug = debug + "level detection failed\n"
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
-                    Levels[k] = (100 * (self.params['lagoonHeight']-lvl))/self.params['lagoonHeight']
+                    Levels[k] = (100.0 * (self.params['lagoonHeight']-lvl))/self.params['lagoonHeight']
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
                     goodRead = goodRead + 1
                     self.drawLagoons(frame)
@@ -219,33 +225,33 @@ class ipCamera(object):
                         if cv.WaitKey(pause) == 27:
                             exit()
                     else :
-                          print "frame was None after drawLagoons!?"  
+                          debug = debug + "frame was None after drawLagoons!?\n"  
                 else :
-                    print str(lvl) + " out of range :" + str(bb)
+                    debug = debug + str(lvl) + " out of range :" + str(bb) + "\n"
                     return None
             if (goodRead != 4) :
-                print str(goodRead) + " good level reads"
-        print "Levels " + str(Levels)
+                debug = debug + str(goodRead) + " good level reads\n"
+        debug = debug + "Levels " + str(Levels) + "\n>>>>>>>>>>>>>>>>>>>>\n"
         return Levels
 
     def updateLagoons(self,pause=100) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
+        global debug
+        debug = debug + "updateLagoons\n"
         numblobs = 0
         needed = ipcam.params['NumLagoons']
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
-            cv2.imwrite('mypic.jpg', frame)
-            print "Frame shape:" + str(frame.shape)
+            debug = debug + "Frame shape:" + str(frame.shape) + "\n"
             bbs = self.evocv.blobs(frame,pause)    # Find the green blobs
             sbbs = self.blobs2lagoons(bbs)     # Sort left to right interpret as lagoon rect
             numblobs = len(sbbs)
-            print "blobs2lagoons returned " +str(numblobs)
             if (numblobs >= needed) :   # Check for the minimum number of lagoon outlines
                 for i in range(needed) :
-                    Lagoon['Lagoon'+str(i+1)] = sbbs[i]
-                    print 'Lagoon'+str(i+1) + "   " + str(sbbs[i])
+                    lagoon['lagoon'+str(i+1)] = sbbs[i]
+                    debug = debug + 'lagoon'+str(i+1) + "   " + str(sbbs[i]) + "\n"
             else :
-                print "Need at least " + str(needed) + " bbs, but got " + str(len(sbbs))
+                print debug + "Needed " + str(needed) + " bbs, but got " + str(numblobs)
                 for bb in sbbs:
                     cv2.rectangle(frame,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),(0,0,255),2)
                 if (frame != None) :
@@ -261,6 +267,8 @@ class ipCamera(object):
         because they represent the liquid levels, so we create a set of
         outlines to include maxiumum fill levels.  These are the only 
         regions of interest for our horizontal line (liquid level) detection"""
+        global debug
+        debug = debug + ">>>>>>>>>>>blobs2lagoons>>>>>\n"
         sbbs = [b for a,b in sorted((tup[0], tup) for tup in bbs)]
         lagoons = []
         ln = 0
@@ -274,29 +282,38 @@ class ipCamera(object):
                     lagoons.append(bb)
                     ln = ln + 1
                 else:
-                    print str(bb) + " not added to lagoon list"
+                    debug = debug + str(bb) + " not added to lagoon list\n"
         outlines = []
         for l in lagoons:
             outlines.append((l[0],l[1]-(self.params['lagoonHeight']-l[3]), l[2],self.params['lagoonHeight']))
         return outlines
 
     def drawLagoons(self, image, pause=200) :
-        global Lagoon
+        global seq
+        global toggle
+        global lagoon
+        global debug
         cler = [cv.Scalar(0,0,255,255),cv.Scalar(0,255,255,255),cv.Scalar(255,0,0,255),cv.Scalar(255,0,255,255)]
         i = 0
-        for bb in Lagoon.values():
+        for bb in lagoon.values():
             cv2.rectangle(image,(bb[0],bb[1]),(bb[0]+bb[2],bb[1]+bb[3]),cler[i%4],1)
             cv2.circle(image,(bb[0],bb[1]),5,cler[(i+1)%4],2)
             i = i + 1
         if (image != None) :
             cv2.imshow("camera", image)
+            dispimage = cv2.resize(image,(650,550))
+            if (os.path.exists("mypic"+str(seq)+".jpg")) :
+                os.remove("mypic"+str(seq)+".jpg")
+            seq = seq + 1
+            cv2.imwrite("mypic"+str(seq)+".jpg",dispimage)
             if cv.WaitKey(pause) == 27:
                 return
         else :
-            print "image was None in drawLagoons"
+            debug = debug + ">>>>drawLagoons>>>\nimage was None in drawLagoons\n>>>>>>\n"
 
     def bioBlobs(self, color, (x1,y1,x2,y2)) :
         """Bio-luminescence detection. Sum images until MAXFRAMES and note saturation points"""
+        global debug
         frame = None
         while(frame == None) :
             frame = ipcam.grab()
@@ -309,7 +326,7 @@ class ipCamera(object):
             while (temp == None and tries < 10) :
                 temp =  ipcam.grab()
                 if (temp == None) :
-                    print "Failed to get image from camera"
+                    debug = debug + "Failed to get image from camera\n"
                     tries = tries + 1
                     time.sleep(1000)
             if (temp == None) :
@@ -372,10 +389,10 @@ def getFluor(ipcam, file) :
     if (gdb['layout'] == None) :
 	load('layout', file, {
             'LagoonRegion' : (650,180,940,620),
-            'Lagoon1' :   (67, 13, 60, 210),
-            'Lagoon2' :  (151, 14, 60, 210),
-            'Lagoon3' :   (226, 10, 59, 210),
-            'Lagoon4' :   (299, 16, 60, 210),
+            'lagoon1' :   (67, 13, 60, 210),
+            'lagoon2' :  (151, 14, 60, 210),
+            'lagoon3' :   (226, 10, 59, 210),
+            'lagoon4' :   (299, 16, 60, 210),
             'NumLagoons'   :    4,
             'Frames'       :   80,
             'lagoonHeight' : 210,    # Can be thought of as the divisor for levelScale
@@ -416,23 +433,24 @@ def getFluor(ipcam, file) :
     else :
         fluor = cv2.subtract(fluor,baseline)
     ffile = open(fluxfile,'w')
-    for l in [ 'Lagoon1', 'Lagoon2', 'Lagoon3', 'Lagoon4' ]:
+    for l in [ 'lagoon1', 'lagoon2', 'lagoon3', 'lagoon4' ]:
         (x, y, w, h) = gdb['layout'][l]
         ffile.write(l + "(" + str(cv2.mean(fluor[y:y+h,x:x+w])[0]) + ").\n")
     ffile.close()
 
 if __name__ == "__main__" :
     print "openCV('" + str(cv2.__version__) + "')."
-    levelfile = './levels'
-    ipcam = setupCamera()  # Needs the file  <hostname>.settings
+    for f in os.listdir('.') :
+        if (f.startswith('mypic')) :
+            os.remove(f)
+    ipcam = setupCamera()  # Needs  {<arg1>|<hostname>}.settings
     if ( 'fluor' in sys.argv) :
         getFluor(ipcam, 'flux.config')
         print 'bailing out early'
         exit(0)
 
-    retry = True
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
-    for f in range(10) :
+    for f in range(30) :
         img = ipcam.grab()
         if (img != None) :
             cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
@@ -443,18 +461,21 @@ if __name__ == "__main__" :
             print "Image grab returned None in __main__"
             exit()
     print "done waiting for brightness to settle"
-    ffile = open(levelfile,'a')
-    while(retry) :
-        retry = False
+    notDone = True
+    while(notDone) :
+        notDone = False
         ipcam.updateLagoons(pause=10) # blob contours shown for 4 seconds
-        for i in range(5) :
+        for i in range(50) :
             if ( ipcam.updateLevels(pause=100) == None) :
                 print "Go back to blob detection and try again"
-                retry = True
+                notDone = True
                 break
-            for k in Levels.keys() :
-                ffile.write(k + "(" + str(Levels[k]) + ").\n")
-    ffile.close()
+            levels = "levels( "+", ".join([str(Levels[k]) for k in Levels.keys()])+").\n"
+            print levels,
+            levelfile = open('./levels','a')
+            levelfile.write(levels)
+            levelfile.close()
+
     if cv.WaitKey(5000) == 27:
         exit()
 

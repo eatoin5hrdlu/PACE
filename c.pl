@@ -9,6 +9,7 @@
 :- pce_autoload(finder, library(find_file)).
 :- pce_global(@finder, new(finder)).
 	
+level_cmd_dir('/usr/bin/tail','/home/peter/src/PACE').
 	
 :- [gbutton].
 
@@ -38,6 +39,7 @@
 
 screen(aristotle, 680, 800, point(50,10)).
 screen(darwin, 680, 838, point(50,0)).
+screen('Evostat1', 680, 900, point(50,0)).
 
 resize(Thing) :-
     screen(_,_,Height,_),
@@ -118,6 +120,23 @@ freeall :-
 freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
+get_new_levels :-
+    level_cmd_dir(Tail,Cwd),
+    process_create(Tail,['-1',levels],[stdout(pipe(Out)),cwd(Cwd)]),
+    read(Out, Levels),
+    close(Out),
+    writeln(gotLevels(Levels)),
+    Levels = levels(L4,L3,L2,L1),
+    send(@lagoon1, setLevel, L1),
+    send(@lagoon2, setLevel, L2),
+    send(@lagoon3, setLevel, L3),
+    send(@lagoon4, setLevel, L4),
+    writeln(sentLevels(Levels)),
+    !.
+
+get_new_levels :- 
+    writeln(failed(levelupdate)).
+
 
 :- pce_begin_class(evostat, dialog, "PATHE Control Panel").
 
@@ -143,7 +162,9 @@ initialise(W, Label:[name]) :->
 		about_atom(About),
 		send_list(Help, append,
 				  [ menu_item(about,
-					      message(@display, inform, About))
+					      message(@display, inform, About)),
+				    menu_item(debug,
+					      message(@prolog, manpce))
 				  ]),
 	 call(Label, Components),
          findall(_,(component(_,Obj),free(Obj)),_), % Clear out previous
@@ -226,12 +247,16 @@ range_color(Target, Current, Color) :-
     ).
 
 update10(W) :->
+    get_new_levels,
     get(W, graphicals, Chain),
     chain_list(Chain, CList),
     member(Object, CList),
-    component(_,Object),        % If one has been created
+    component(_Name,Object),        % If one has been created
     send(Object, update),
+#    writeln(update10(completed(Name))),
     fail.
+update10(W) :-> true.
+%    writeln(finishedupdate10(W)).
     
 :- pce_end_class.
 
@@ -282,7 +307,7 @@ prompt(W, Value:name) :<-
 aristotle([
   cellstat(c5, right,
    [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(200,80)]),
-  snapshot(c9, right, [ shape(640,480) ]),
+  snapshot(c9, right, [ shape(650,500) ]),
   lagoon(l1,  next_row,
    [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
   lagoon(l2,  right,
@@ -294,7 +319,7 @@ aristotle([
 buffon([
   ebutton(c5, right,
    [ btaddr('98:D3:31:70:2B:70'), shape(40,20)]),
-  snapshot(c9, right,   [ shape(640,480) ]),
+  snapshot(c9, right,   [ shape(650,500) ]),
   ebutton(l1,  right,
    [ btaddr('98:D3:31:70:2B:70'), shape(200,12)]),
   ebutton(l2,  right,
@@ -304,12 +329,13 @@ buffon([
 ]).
 
 %  lagoon(   lagoon1, next_row, [ btaddr('98:D3:31:70:2B:70'),
-darwin([
+% The hostname is the default
+'Evostat1'([
  cellstat(cellstat,  below,   [ shape(240,60),font(font(times,roman,18))]),
 % pumps( pumprail, next_row,   [  btaddr('98:D3:31:70:2B:70')]),
  pumps( pumprail, next_row,   [  ]),
  spacer(        x1, next_row, [color(blue)]),
- snapshot(     cam, next_row, [ shape(640,380),image('mypic.jpg')]),
+ snapshot(     cam, next_row, [ shape(650,420),image('mypic1.jpg')]),
  spacer(        x2, next_row, []),
  lagoon(   lagoon1, next_row, [
                              temp(37.9), od(0.4), LS, LF]),
@@ -339,7 +365,12 @@ about_atom(About) :-
 	read_pending_input(Handle,FileContent,[]),
 	atom_chars(About,FileContent).
 
-c :- current_prolog_flag(argv,[_,Name|_]) -> c(Name) ; c(darwin).
+c :- ( current_prolog_flag(argv,[_,Name|_])
+     -> c(Name)
+     ; gethostname(Host),
+       c(Host)
+     ).
+
 
 c(Name) :-
     free(@gui),
@@ -347,4 +378,9 @@ c(Name) :-
     send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
     get(@gui, prompt, Reply),
     (Reply = quit -> send(@gui, destroy); true ).
+
+
+
+ 				 
+
 

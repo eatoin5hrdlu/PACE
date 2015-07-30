@@ -12,6 +12,13 @@
 
 :- dynamic tog/1.
 
+snapshot(Path, FileName) :-
+	directory_files(Path,FileList),
+	member(IFile,FileList),
+	atom_codes(IFile,ICs),
+	append("mypic",_,ICs),
+	concat_atom([Path,IFile],FileName).
+
 
 % WGET will use alternate filenames so we update Image properly
 % and are never caught reading a file that hasn't been fully written
@@ -46,10 +53,11 @@ variable(imageFile,      name, get, "Current Image Filename" ).
 initialise(Self, Label:[name]) :->
 	"Initialise the image area"::
         send_super(Self, initialise(Label)),
-	send(Self, size, size(640,380)),
-	send(Self, slot, imageFile, 'mypic.jpg'),
+	send(Self, size, size(650,480)),
+	snapshot('./',File),
+	send(Self, slot, imageFile, File),
 	send(Self, slot, imageDirectory, './'),
-	new(I, image('mypic.jpg')),
+	new(I, image(File)),
 	send(Self, selection, I),
 	assert(tog(1)).
 
@@ -63,11 +71,9 @@ shape(Self, W:[int], H:[int]) :->
 
 update(Self) :->
 	get(Self, imageDirectory, Path),
-	wget(OtherFile, Command, Args),
-	concat_atom([Path,OtherFile], Where),
-	new(I, image(Where)),
-	send(Self,selection,I),
-	process_create(Command, Args, [ detached(true), process(PID)]).
+	snapshot(Path, File),
+	new(I, image(File)),
+	send(Self,selection,I).
 
 :- pce_end_class.
 
@@ -192,30 +198,48 @@ update(Self) :->
 
 variable(fluorescence,real, get, "Fluorescence").
 variable(fluorescence_t, real, get, "Target Fluorescence").
+variable(level,real, get, "Level").
+variable(level_t, real, get, "Target Level").
 
-initialise(B, Label:[name]) :->
+initialise(Self, Label:[name]) :->
 	"Initialise the lagoon"::
-        send_super(B, initialise(Label)),
-	send(B, slot, fluorescence_t, 0.2),
-	send(B, slot, fluorescence, 0.0).
+        send_super(Self, initialise(Label)),
+	send(Self, slot, level, 0.0),
+	send(Self, slot, level_t, 0.3),
+	send(Self, slot, fluorescence_t, 0.2),
+	send(Self, slot, fluorescence, 0.0).
+
+setLevel(Self,Level) :->
+       send(Self, slot, level, Level).
 
 update(Self) :-> 
-        get(Self,slot,temperature_t,Target),
+        get(Self,slot,level,Level),
         get(Self,slot,temperature,Temp),
+        get(Self,slot,temperature_t,Target),
 	range_color(Target, Temp, Color),
 	send(Self, colour(Color)),
-
         get(Self,slot,fluorescence_t,LuxTarget),
         get(Self,slot,fluorescence,Lux),
-        concat_atom(['Temperature\n', Target, 'C / ',Temp,' C\n',
-	'Lux : ', LuxTarget, ' / ', Lux, 'lm' ], Label),
+	format(atom(Level2), '~4g', [Level]),
+        concat_atom(['Level ', Level2, '%\n',
+	             'Temp  ', Target, 'C / ',Temp,' C\n',
+                     'Lux   ', LuxTarget, ' / ', Lux, 'lm' ], Label),
 	send(Self, label, Label).
 
 :- pce_end_class.
 
 :- pce_begin_class(sampler, ebutton).
 
-update(_Self) :-> true.
+initialise(Self, Label:[name]) :->
+	"Initialise the lagoon"::
+        send_super(Self, initialise(Label)).
+
+update(Self) :->
+	( tog(1) ->
+	   send(Self, colour, colour(black))
+	;
+	   send(Self, colour, colour(blue))
+	).
 
 :- pce_end_class.
 
