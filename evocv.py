@@ -104,9 +104,12 @@ class EvoCv(object):
             print "Level detector called with invalid image"
             return -1
         (h,w) = img.shape
+        if (h == 0 or w == 0) :
+            print "Level called with degenerate image SHAPE" + str(img.shape)
+            return -1
         img = self.contrast(img)
         if (img==None) :
-            print "Contrast returned None"
+            print "Contrast returned None  (shape =" + str(img.shape)
             return -1
         edges = cv2.Canny(img, 90, 100)
         if (edges == None) :
@@ -128,6 +131,7 @@ class EvoCv(object):
         """IP cameras like 2X(Erode->Dilate->Dilate) erodeDilate(img,2,1,2)
            USB camera likes single erode->dilate cycle erodeDilate(img,1,1,1)
            TODO: Automate variation of these parameters to get a good reading"""
+        debug = ''
 	emp = self.emphasis(img)
         self.showUser(emp,pause)
         con = self.contrast(emp,iter=1)
@@ -137,7 +141,7 @@ class EvoCv(object):
         self.showUser(gray2,pause)
         contours, _ = cv2.findContours(gray2, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	if (pause != 0) :
-            print str(len(contours)) + " contours ( ",
+            debug = debug + str(len(contours)) + " contours ( "
         toosmall = 0
         toolarge = 0
 	bbs = []
@@ -151,19 +155,20 @@ class EvoCv(object):
                     continue
 		else :
                     if (rect[2] > self.maxWidth) :  # Limit width and center
-                        print "too wide"
                         margin = (rect[2]-self.maxWidth)/2
+                        debug = debug + "WIDTH/CENTER ADJUSTED " + str(rect) + "\n"
                         bbs.append((margin+rect[0],rect[1],self.maxWidth,rect[3]))
                     else :
-                        print "SIZE OKAY   " + str(rect)
+                        debug = debug + "SIZE OKAY   " + str(rect) + "\n"
                         bbs.append(rect)
 
         if (pause != 0) :
-            print ") "+str(toosmall)+" too small "+str(toolarge)+" too large"
+            debug = debug + ") "+str(toosmall)+" too small "+str(toolarge)+" too large\n"
             pen = (255,255,255) # White
             for r in bbs:
                 cv2.rectangle(img,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),pen,2)
             self.showUser(img,pause)
+        print ">>>>>>blobs>>>>>>>\n" + debug + ">>>>>" + str(len(bbs)) + ">>>>>>>>>>>>>"
 	return bbs
 
 

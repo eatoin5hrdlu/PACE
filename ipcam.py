@@ -61,7 +61,9 @@ class ipCamera(object):
             self.url = "http://" + self.ip + self.params['picCmd'] + self.params['userpwd']
             print "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
-        self.evocv  = evocv.EvoCv(1,30,300)  # Detection of green(1) blobs 30-300 pixels wide
+        self.evocv  = evocv.EvoCv(1,  # Detect green(1) blobs > Width/2 < Height
+                                  self.params['lagoonWidth']/2, 
+                                  self.params['lagoonHeight'])
 
     def nullImage(self, img, who) :
         if (img == None) :
@@ -130,6 +132,7 @@ class ipCamera(object):
         return None
  
     def grab(self):
+        global debug
         if (self.usbcam != None) :
             try :
                 (rval, im1) = self.usbcam.read()
@@ -154,8 +157,17 @@ class ipCamera(object):
             except urllib2.URLError, msg :
                 print msg, " Failed to get image from camera at ", self.ip
 
+            if (img1 == None) :
+                debug = debug + "No image returned in IPcamera.grab()"
+                return None
+                
             if (self.params['rotate']) :
-                return self.rotateImage(cv2.imdecode(img1,1), self.params['rotate'])
+                img2 = cv2.imdecode(img1,1)
+                if (img2 == None) :
+                    debug = debug + "No image returned by imdecode() in grab()"
+                    return None
+                
+                return self.rotateImage(img2, self.params['rotate'])
             else :
                 return(cv2.imdecode(img1, 1))
         return None
@@ -212,6 +224,7 @@ class ipCamera(object):
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
                 debug = debug + k + "   SHAPE " + str(frame.shape) + "\n"
                 debug = debug + str(bb) + "\nSHAPE " + str(subi.shape) + "\n"
+                print debug
                 lvl = self.evocv.level(subi)
                 if (lvl == None or lvl == 1000) :
                     debug = debug + "level detection failed\n"
@@ -248,6 +261,7 @@ class ipCamera(object):
             numblobs = len(sbbs)
             if (numblobs >= needed) :   # Check for the minimum number of lagoon outlines
                 for i in range(needed) :
+                    print "GOT " + str(sbbs[i])
                     lagoon['lagoon'+str(i+1)] = sbbs[i]
                     debug = debug + 'lagoon'+str(i+1) + "   " + str(sbbs[i]) + "\n"
             else :

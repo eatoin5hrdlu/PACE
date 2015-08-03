@@ -1,0 +1,18 @@
+{
+        'LagoonRegion' : (190,160,300,450),
+        'lagoonHeight' : 60,    # divisor for levelScale
+        'lagoonWidth'  : 20,
+        'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
+        'camera'       : 'indoor',
+        'rotate'       : None,
+        'NumLagoons'   :  4,
+        'MAC'          : "c4:d6:55:34:8d:07",
+        'defaultIP'    : "172.16.2.130",
+        'userpwd'      :  "&user=scrapsec&pwd=lakewould",
+        'brightness'   :  40,   # 0-240 for indoor camera
+        'brightnessCmd': "/camera_control.cgi?param=1&value=",
+        'contrast'     :  3,     # 0-6 for indoor camera
+        'contrastCmd'  : "/camera_control.cgi?param=2&value=",
+        'picCmd'       : "/snapshot.cgi?resolution=32&user=admin&pwd=lakewould" }
+
+
