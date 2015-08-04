@@ -25,6 +25,7 @@ class EvoCv(object):
 	self.color = color   # default color of interest is Green
         self.maxWidth = 60   # All lagoon areas will be reduced to a strip this wide
 	self.minDim = minsize
+        self.debug = ''
 	self.maxDim = maxsize
         self.kernal = np.ones((5,5),np.uint8)
         self.alpha   = np.array([  1.2 ])
@@ -39,6 +40,9 @@ class EvoCv(object):
             img = cv2.dilate(img,self.kernal,iterations=dilate)
         return img
                 
+    def debugString(self) :
+	return self.debug
+
     def set_minsize(self, minsize) :
 	self.minDim = minsize
 
@@ -46,7 +50,7 @@ class EvoCv(object):
 	self.maxDim = maxsize
 
     def rotateImage(self, img, angle=90):
-        """+-90 degree rotations are fast and dont crop"""
+        """+-90 degree rotations are fast and do not crop"""
         if (angle == 90) :
             return(cv2.flip(cv2.transpose(img),flipCode=0))
         elif (angle == -90) :
@@ -131,7 +135,6 @@ class EvoCv(object):
         """IP cameras like 2X(Erode->Dilate->Dilate) erodeDilate(img,2,1,2)
            USB camera likes single erode->dilate cycle erodeDilate(img,1,1,1)
            TODO: Automate variation of these parameters to get a good reading"""
-        debug = ''
 	emp = self.emphasis(img)
         self.showUser(emp,pause)
         con = self.contrast(emp,iter=1)
@@ -141,7 +144,7 @@ class EvoCv(object):
         self.showUser(gray2,pause)
         contours, _ = cv2.findContours(gray2, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	if (pause != 0) :
-            debug = debug + str(len(contours)) + " contours ( "
+            self.debug = self.debug + str(len(contours)) + " contours ( "
         toosmall = 0
         toolarge = 0
 	bbs = []
@@ -156,19 +159,19 @@ class EvoCv(object):
 		else :
                     if (rect[2] > self.maxWidth) :  # Limit width and center
                         margin = (rect[2]-self.maxWidth)/2
-                        debug = debug + "WIDTH/CENTER ADJUSTED " + str(rect) + "\n"
+                        self.debug = self.debug + "WIDTH/CENTER ADJUSTED " + str(rect) + "\n"
                         bbs.append((margin+rect[0],rect[1],self.maxWidth,rect[3]))
                     else :
-                        debug = debug + "SIZE OKAY   " + str(rect) + "\n"
+                        self.debug = self.debug + "SIZE OKAY   " + str(rect) + "\n"
                         bbs.append(rect)
 
         if (pause != 0) :
-            debug = debug + ") "+str(toosmall)+" too small "+str(toolarge)+" too large\n"
+            self.debug = self.debug + ") "+str(toosmall)+" too small "+str(toolarge)+" too large\n"
             pen = (255,255,255) # White
             for r in bbs:
                 cv2.rectangle(img,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),pen,2)
             self.showUser(img,pause)
-        print ">>>>>>blobs>>>>>>>\n" + debug + ">>>>>" + str(len(bbs)) + ">>>>>>>>>>>>>"
+        self.debug = ">>>>>>blobs>>>>>>>\n" + self.debug + ">>>>>" + str(len(bbs)) + ">>>>>>>>>>>>>"
 	return bbs
 
 

@@ -7,7 +7,7 @@
         'rotate'       : None,
         'NumLagoons'   :  4,
         'MAC'          : "c4:d6:55:34:8d:07",
-        'defaultIP'    : "172.16.2.130",
+        'defaultIP'    : "172.16.2.254",
         'userpwd'      :  "&user=scrapsec&pwd=lakewould",
         'brightness'   :  40,   # 0-240 for indoor camera
         'brightnessCmd': "/camera_control.cgi?param=1&value=",

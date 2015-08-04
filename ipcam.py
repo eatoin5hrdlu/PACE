@@ -5,13 +5,14 @@ import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
 from os  import popen
 
+from suppress_stdout_stderr import suppress_stdout_stderr
 import numpy as np
 import cv2
 import cv2.cv as cv
 import evocv
 
 gdb = { 'layout' : None  }
-debug = ''
+debug = ""
 lagoon = {}
 Levels = {}
 toggle = True
@@ -34,11 +35,12 @@ class ipCamera(object):
        lagoon dimensions, lighting, angle of camera, etc."""
 
     def __init__(self):
+        global debug
         if (len(sys.argv) < 2 and 
             os.path.isfile(socket.gethostname() + ".settings")):
             f = open(socket.gethostname() + ".settings",'r')
         elif (os.path.isfile(sys.argv[1] + ".settings")) :
-            print 'Using configuration in  ' + sys.argv[1] + '.settings'
+            debug = debug + 'Using configuration in  ' + sys.argv[1] + '.settings'
             f = open(sys.argv[1] + ".settings",'r')
         else :
             print "ipCamera object requires config file './<hostname>.settings'"
@@ -59,7 +61,7 @@ class ipCamera(object):
                 print self.params['MAC'], " is not a valid IP/MAC for a Camera"
                 exit(1)
             self.url = "http://" + self.ip + self.params['picCmd'] + self.params['userpwd']
-            print "Using URL: " + self.url
+            debug = debug + "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
         self.evocv  = evocv.EvoCv(1,  # Detect green(1) blobs > Width/2 < Height
                                   self.params['lagoonWidth']/2, 
@@ -101,31 +103,33 @@ class ipCamera(object):
     def ValidIP(self,s):
         """Uses regular expressions for valid MAC and IP addresses and then
            calls arp-scan (must be on Linux and a superuser) to find IP from MAC"""
+        global debug
         ip = None
         part = '(2[0-4]|1[0-9]|[0-9])?[0-9]|25[0-5]'
         res =re.search(r'(^| )((%s)\.){3}(%s)' %(part,part), s,re.I )
         if res:
-            print "Good IP ", res.group().strip()
+            debug = debug + "Good IP " + res.group().strip()
             ip = res.group().strip()
         else:
             macres = re.search(r'([a-fA-F0-9]{2}[:|\-]?){6}', s,re.I )
             if macres:
-                print "Finding IP from MAC ", macres.group().strip()
+                debug = debug + "Finding IP from MAC " + macres.group().strip()
                 ip = self.Mac2IP(macres.group().strip())
         return ip
 
     def Mac2IP(self, mac) :
+        global debug
         if os.name == 'nt' :
             return self.defaultIP
         if not os.geteuid() == 0 :
-            print "Superuser required to find IP from MAC, using default IP."
+            debug = debug + "Superuser required to find IP from MAC, using default IP."
             return(self.defaultIP)
 #        cmd = 'arp-scan --interface=wlan0 --localnet | grep ' + mac
         cmd = 'arp-scan --interface=eth0 --localnet | grep ' + mac
         ret = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE).stdout.readline()
         if (ret) :
             ipstr = ret.split()[0]
-            print "Camera is at IP address: " + ipstr
+            debug = debug + "Camera is at IP address: " + ipstr
             if not ipstr == self.defaultIP:
                 print "please change defaultIP("+self.defaultIP+") in ipcam.py to ", ipstr
             return ipstr
@@ -182,7 +186,8 @@ class ipCamera(object):
 #        return image
 
     def cmdToCamera(self, cmd) :
-        print "HTTP: " + cmd
+        global debug
+        debug = debug + "HTTP: " + cmd
         try:
             urllib2.urlopen(urllib2.Request(cmd))
         except urllib2.URLError, msg :
@@ -224,7 +229,7 @@ class ipCamera(object):
                 subi = frame[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2],1]
                 debug = debug + k + "   SHAPE " + str(frame.shape) + "\n"
                 debug = debug + str(bb) + "\nSHAPE " + str(subi.shape) + "\n"
-                print debug
+#                print debug
                 lvl = self.evocv.level(subi)
                 if (lvl == None or lvl == 1000) :
                     debug = debug + "level detection failed\n"
@@ -261,7 +266,7 @@ class ipCamera(object):
             numblobs = len(sbbs)
             if (numblobs >= needed) :   # Check for the minimum number of lagoon outlines
                 for i in range(needed) :
-                    print "GOT " + str(sbbs[i])
+                    debug = debug + "GOT " + str(sbbs[i])
                     lagoon['lagoon'+str(i+1)] = sbbs[i]
                     debug = debug + 'lagoon'+str(i+1) + "   " + str(sbbs[i]) + "\n"
             else :
@@ -371,7 +376,8 @@ def write_settings(cFile):
     f.close()
 
 def setupCamera() :
-    cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
+    with suppress_stdout_stderr() :
+        cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
     if cv2.__dict__['moveWindow'] != None :
         cv2.moveWindow("camera", 100, 0)
     else :
@@ -453,7 +459,7 @@ def getFluor(ipcam, file) :
     ffile.close()
 
 if __name__ == "__main__" :
-    print "openCV('" + str(cv2.__version__) + "')."
+    debug = "openCV('" + str(cv2.__version__) + "')."
     for f in os.listdir('.') :
         if (f.startswith('mypic')) :
             os.remove(f)
@@ -474,24 +480,43 @@ if __name__ == "__main__" :
         else:
             print "Image grab returned None in __main__"
             exit()
-    print "done waiting for brightness to settle"
+    debug = debug + "done waiting for brightness to settle"
+    previous = []
     notDone = True
+    needed = 3
     while(notDone) :
-        notDone = False
         ipcam.updateLagoons(pause=10) # blob contours shown for 4 seconds
-        for i in range(50) :
-            if ( ipcam.updateLevels(pause=100) == None) :
-                print "Go back to blob detection and try again"
-                notDone = True
-                break
-            levels = "levels( "+", ".join([str(Levels[k]) for k in Levels.keys()])+").\n"
-            print levels,
-            levelfile = open('./levels','a')
-            levelfile.write(levels)
-            levelfile.close()
-
-    if cv.WaitKey(5000) == 27:
-        exit()
+        if ( ipcam.updateLevels(pause=100) == None) :
+            continue
+        for i in range(len(previous)) :
+            for k in Levels.keys() :
+                if (abs(previous[i][k]-Levels[k]) > 0.1) :
+                    debug = debug + "Odd man at " + str(i)
+                    new = []
+                    for j in range(len(previous)) :
+                        if (j != i) :
+                            new.append(previous[k])
+                        else :
+                            new.append(Levels)
+                    debug = debug + "Replacing the odd man"
+                    previous = new
+                    continue
+        debug = debug + "Current levels were close to previous " + str(len(previous))
+        if (len(previous) < needed) :
+                previous.append(Levels)
+                debug = debug + "added one to working list"
+        howmany = len(previous)
+        if (len(previous) == needed) :
+            debug = debug + "That's all we need"
+            notDone = False
+        else:
+            debug = debug + str(howmany) + " : " + str(previous)
+            
+    levels = "levels( "+", ".join([str(Levels[k]) for k in Levels.keys()])+").\n"
+    print levels
+    levelfile = open('./levels','a')
+    levelfile.write(levels)
+    levelfile.close()
 
 #    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
