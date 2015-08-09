@@ -1,10 +1,14 @@
-insideradius = 9;
-outsideradius = 16.5;
+insideradius = 9.3;
+outsideradius = 16.1;
+
+// Loose fitting
+//insideradius = 9;
+//outsideradius = 16.5;
 height = 12;
-inletradius = 2;
-filterradius= 3;
-inducerradius = 1.5;
-sampleradius = 2;
+inletradius = 1.5;
+filterradius= 2.8;
+inducerradius = 1.2;
+sampleradius = 1.5;
 c0 = 14;
 t0 = 10;  // tab spacing
 tt = 3;   // tab thickness
