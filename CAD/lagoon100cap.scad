@@ -14,6 +14,11 @@ t0 = 10;  // tab spacing
 tt = 3;   // tab thickness
 i0 = 4;  //inlet spacing
 
+module cross() {
+   cube([4+insideradius,2,height-3],center=true);
+   cube([2,4+insideradius,height-3],center=true);
+}
+
 module base(size) {
 
     difference() {
@@ -58,4 +63,5 @@ module septa() {
      }
 }
 septa();
+translate([0,0,2]) cross();
 
