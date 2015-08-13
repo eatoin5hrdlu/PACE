@@ -1,4 +1,9 @@
 #!/usr/bin/xpce
+:- tell(logfile),
+   telling(S),
+   set_stream(S,alias(user_error)).
+   at_halt(pathe_report(verbose)).
+
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -8,8 +13,11 @@
 :- use_module(library(ctypes)).
 :- pce_autoload(finder, library(find_file)).
 :- pce_global(@finder, new(finder)).
+
 	
-level_cmd_dir('/usr/bin/tail','/home/peter/src/PACE').
+%level_cmd_dir(['/usr/bin/python','fakelevel.py'],'/home/peter/src/PACE').
+%level_cmd_dir(['/usr/bin/tail','-1',levels],    '/home/peter/src/PACE').
+level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
 	
 :- [gbutton].
 
@@ -34,6 +42,13 @@ level_cmd_dir('/usr/bin/tail','/home/peter/src/PACE').
 %   Blue when parameter values are low
 %   Orange when parameters are high
 %   Green when paramaters are in the target range
+
+pathe_report(verbose) :-
+    writeln(yada_yada_yada),
+    writeln(verbosityyada_yada_yada).
+
+pathe_report(moderate) :-
+    writeln(yada_moderate_yada).
 
 % Create a dialog for this EvoStat
 
@@ -121,8 +136,8 @@ freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
 get_new_levels :-
-    level_cmd_dir(Tail,Cwd),
-    process_create(Tail,['-1',levels],[stdout(pipe(Out)),cwd(Cwd)]),
+    level_cmd_dir([Cmd|Args],Cwd),
+    process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
     read(Out, Levels),
     close(Out),
     writeln(gotLevels(Levels)),
@@ -253,9 +268,10 @@ update10(W) :->
     member(Object, CList),
     component(_Name,Object),        % If one has been created
     send(Object, update),
-#    writeln(update10(completed(Name))),
+%    writeln(update10(completed(Name))),
     fail.
-update10(W) :-> true.
+
+update10(_W) :-> true.
 %    writeln(finishedupdate10(W)).
     
 :- pce_end_class.
@@ -358,6 +374,7 @@ create(Dialog, Component) :-
 	new(@Name, Class),
 	maplist(send(@Name), Data), % Process all before appending
 	send(Dialog, append(@Name, Position)),
+	writeln(component(Name,@Name)),
         assert(component(Name,@Name)).
 
 about_atom(About) :-
