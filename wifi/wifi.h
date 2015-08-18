@@ -1,7 +1,6 @@
 #ifndef WIFI_v1_h
 #define WIFI_v1_h
 #define LIBRARY_VERSION	1.0.0
-#include "secrets.h"
 
 /*
  * Wifi submodule (plug-in alternative for Bluetooth)
@@ -17,124 +16,129 @@
 
 class WIFI
 {
-
  private:
-  int lastid;
+  int id;
   bool once;
   char buf[100];
 
  public:
-
   WIFI() {
-    lastid = 0;
+    id = -1;
     once = true;
-    Serial.println("AT");
-    delay(500);
-    if (!readstring() || strncmp("OK",buf,2))
-      mysend("error0 not AT-OK");
   }
 
-  char *
-    mysend(char *data) 
+  void initialize() {
+      Serial.println("AT");
+      delay(3000);
+      bool b = readline();
+      int cm = strncmp("OK",buf,2);
+      //      if (b && cm)
+      //	mysend("seemed okay");
+      //      else
+      //	mysend("error0 not AT-OK");
+      //      mysend(buf);
+  }
+
+  char * mysend(char *data)
     {
-      Serial.print("AT+CIPSEND=");
-      Serial.print(lastid);
-      Serial.print(",");
-      Serial.println(strlen(data)+2);
-      Serial.println(data);
+      if (id > -1) // Connected
+	{
+	  Serial.print("AT+CIPSEND=");
+	  Serial.print(id);
+	  Serial.print(",");
+	  Serial.println(strlen(data)+2);
+	  Serial.println(data);
+	}
       return data;
     }
 
-  bool
-    readstring(void)
-    {
-      int i = 0;
-      while (Serial.available() > 0)  // Read a line of input
-	{
-	  int c  = Serial.read();
-	  if ( c == 13 ) continue;
-	  if ( c == 10 ) break;
-	  buf[i++] = (char)c;
-	  if (Serial.available() == 0) // It is possible we're too fast
-	    delay(200);
-	}
-      if (i == 0) return false;
-      return true;
-    }
+  bool readline(void)  // Every line must end with \n ( \r ignored )
+  {
+    int i = 0;
+    while (Serial.available() > 0)  // Read a line of input
+      {
+	int c  = Serial.read();
+	if ( c == 13 ) continue;
+	if ( c == 10 ) break;
+	buf[i++] = (char)c;
+	if (Serial.available() == 0) // It is possible we're too fast
+	  delay(200);
+      }
+    buf[i] = NULL;
+    if (i == 0) return false;
+    return true;
+  }
 
-  char *
-    myrecv(void) 
-    {
-      int token,length,idx;
-      if (readstring()) 
+  bool myrecv(char *pc1, char *pc2, int *pvalue)
+  {
+      char c1,c2;
+      int value,len,conid;
+      if (readline()) // Fills buf or returns false
 	{
-	  char *cp = "+IDP=0,12:abcdefghijklm";
-	  if ( sscanf(buf,"+IDP=%d,%d:%s",&lastid,&length,&buf) == 3 )
+	  if ( sscanf(buf,"+IDP=%d,%d:%c%c%d",&id,&len,pc1,pc2,pvalue) > 2)
+	    return true;
+	  if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
 	    {
-	      Serial.println("Got it");
-	    }
-	  else
-	    {
-	      if (!strncmp(buf,"+IDP=",5)) {
-		int token,length;
-		int idx = 5;
-		lastid = buf[idx]-'0';
-		idx++;
-		if (buf[idx] != ',') {
-		  return mysend("error1");
-		}
-		idx++;
-		token = idx;
-		while(buf[idx] != ',') idx++;
-		buf[idx] = 0;
-		length = atoi(&buf[token]);
-		idx++;
-		if (buf[idx+length-1] != 10 || buf[idx+length-2] != 13) {
-		  return mysend("error2");
-		} else {
-		  mysend("Data was not properly terminated");
-		}
-		buf[idx+length-2] = 0;
-		return(&buf[idx]);
-	      }
+	      if (conid == id) { id = -1; return false; }
 	    }
 	}
-    }
-	
+      return false;
+  }
 
   void respondToRequest(void)
   {
-    char *cp = myrecv();
-    if ( strlen(cp) > 0 )  {   // process the command
-      int value = 0;
-      if (strlen(cp) > 2)
-	value = atoi(&cp[2]);
-      if (!process_command(cp[0], cp[1], value)) {
-	mysend("bad command");
-      }
-    }
+    char c1 = NULL, c2 = NULL;
+    int value = 0;
+    if ( myrecv(&c1,&c2,&value) )
+      process_command(c1,c2,value);
   }
 
-  bool process_command(char c, char c2, int value)
+  bool connected() { return (id > -1); }
+  
+  int accept()
+  {
+    if (readline())
+      sscanf(buf, "%d,CONNECT", &id);
+    return id;
+  }
+
+  bool process_command(char c1, char c2, int value)
   {
     char *msg = "thanks[X][Y]";
-    msg[7] = c;
+    msg[7] = c1;
     msg[10] = c2;
     mysend(msg);
     return true;
   }
 
+  bool okResponse()    // Read all available input into buf
+  {
+    delay(1000);
+    int i = 0;
+    while (Serial.available() > 0)
+	{
+	  buf[i++] = Serial.read();
+	  if (Serial.available() == 0)
+	    delay(500);
+	}
+      buf[i] = NULL;
+      if (i == 0) return false;
+      return true;
+  }
+
   void start_server() 
   {
     if (once) {
-      Serial.println("AT+CWJAP=\"milton\",\"\"");
-      Serial.println("AT+CWMODE=3");
-      Serial.println("AT+CIPMUX=1");
+      initialize();
+      Serial.println("AT+CWQAP");     delay(4000); okResponse();
+      Serial.println(SECRETJOIN);     delay(10000); okResponse();
+      Serial.println("AT+CWMODE=3");  delay(1000); okResponse();
+      Serial.println("AT+CIPMUX=1");  delay(1000); okResponse();
       once = false;
     }
-    Serial.println("AT+CIPSERVER=1,23");
-  }
+    Serial.println("AT+CIPSERVER=1,23"); delay(1000); okResponse();
+ }
 
-    };  // End of Wifi Class
+};  // End of WIFI Class
 #endif
 
