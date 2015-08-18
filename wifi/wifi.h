@@ -1,21 +1,7 @@
 #ifndef WIFI_v1_h
 #define WIFI_v1_h
 #define LIBRARY_VERSION	1.0.0
-
-#ifdef SPLATSPACE
-#define SSID "splatspace"
-#define PASSWORD "hacktheplanet"
-#endif
-
-#ifdef INNATRIX
-#define SSID "UNC-PSK"
-#define PASSWORD "IDontWantChangeIWantSwissCheese"
-#endif
-
-#ifdef HOME
-#define SSID "milton"
-#define PASSWORD ""
-#endif
+#include "secrets.h"
 
 /*
  * Wifi submodule (plug-in alternative for Bluetooth)
