@@ -12,12 +12,16 @@
 
 :- dynamic tog/1.
 
+
 snapshot(Path, FileName) :-
 	directory_files(Path,FileList),
 	member(IFile,FileList),
 	atom_codes(IFile,ICs),
 	append("mypic",_,ICs),
-	concat_atom([Path,IFile],FileName).
+	concat_atom([Path,IFile],FileName),
+	!.
+snapshot(Path, Filename) :-
+	concat_atom([Path,'opencvlevel.jpg'], Filename).
 
 
 % WGET will use alternate filenames so we update Image properly
@@ -55,6 +59,7 @@ initialise(Self, Label:[name]) :->
         send_super(Self, initialise(Label)),
 	send(Self, size, size(650,480)),
 	snapshot('./',File),
+	writeln(snapshot(File)),
 	send(Self, slot, imageFile, File),
 	send(Self, slot, imageDirectory, './'),
 	new(I, image(File)),
@@ -79,8 +84,8 @@ update(Self) :->
 
 :- pce_begin_class(ebutton, button).
 
-variable(socket,  int, get, "Bluetooth Socket" ).
-variable(btaddr, name, get, "Bluetooth MAC Address" ).
+variable(socket,  int, get, "Bluetooth/IP Socket" ).
+variable(mac, name, get,    "Bluetooth/IP MAC Address" ).
 variable(reply, name, get, "Last Message from Device" ).
 
 % Current Settings
@@ -99,7 +104,7 @@ initialise(B, Label:[name]) :->
 	send(B, slot, temperature, 0.0),
 	send(B, slot, od600, 0.0),
 	send(B, slot, socket, -1),
-	send(B, slot, btaddr, discover).
+	send(B, slot, mac, discover).
 
 
 mix_colors(   C,   C,      C) :- !.
@@ -127,13 +132,13 @@ command(Self, Cmd) :->
 	  ; send(Self, slot, reply, failed)
 	).
 
-btaddr(Self, Addr:[name]) :->
-	send(Self, slot, btaddr, Addr),
+mac(Self, Addr:[name]) :->
+	send(Self, slot, mac, Addr),
 	send(Self, connect).
 
 connect(Self) :->
 	"Connect (or re-connect) the Bluetooth channel"::
-	get(Self, btaddr, Addr),
+	get(Self, mac, Addr),
 	get(Self, socket, OldSocket),
         ( OldSocket > -1 -> bt_close(OldSocket) ; true),
 	repeat(5),
@@ -166,11 +171,11 @@ mac(Self, MAC:[name]) :->
         getIPfromMAC(MAC,IP),
 	send(Self, ip, ip(IP)).
 
-bt(Self, BtAddr) :->
+bt(Self, MacAddr) :->
 	get(Self, socket, OldSocket),
         ( OldSocket > -1 -> bt_close(OldSocket) ; true),
 	repeat(5),
-		bt_socket(BtAddr,Socket),
+		bt_socket(MacAddr,Socket),
 	( Socket > -1; sleep(1),fail ),
 	!,
 	send(Self,slot,socket,Socket).
@@ -262,16 +267,16 @@ update(_Self) :-> true.
 
 :- pce_begin_class(pumps, dialog_group, "Pump Rail").
 
-variable(socket,  int, get, "Bluetooth Socket" ).
-variable(btaddr, name, get, "Bluetooth MAC Address" ).
-variable(reply, name, get, "Last Message from Device" ).
+variable(socket,  int, get, "Bluetooth/IP Socket" ).
+variable(mac,    name, get, "Bluetooth/IP MAC Address" ).
+variable(reply,  name, get, "Last Message from Device" ).
 
 initialise(Self,Label:[name]) :->
 	"Initialise the window and fill it"::
         send_super(Self,initialise(Label)),
 	send(Self, size,size(600,84)),
 	send(Self, slot, socket, -1),
-	send(Self, slot, btaddr, discover),
+	send(Self, slot, mac, discover),
         ( childName(pump, 5, PName),
           free(@PName),
 	  new(@PName, pump(PName)),
@@ -312,13 +317,13 @@ command(Self, Cmd) :->
 	  ; send(Self, slot, reply, failed)
 	).
 
-btaddr(Self, Addr:[name]) :->
-	send(Self, slot, btaddr, Addr),
+mac(Self, Addr:[name]) :->
+	send(Self, slot, mac, Addr),
 	send(Self, connect).
 
 connect(Self) :->
 	"Connect (or re-connect) the Bluetooth channel"::
-	get(Self, btaddr, Addr),
+	get(Self, mac, Addr),
 	get(Self, socket, OldSocket),
         ( OldSocket > -1 -> bt_close(OldSocket) ; true),
 	repeat(5),

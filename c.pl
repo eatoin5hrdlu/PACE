@@ -1,4 +1,8 @@
-#!/usr/bin/xpce
+:-  at_halt((append(logfile),pathe_report(verbose))),
+    tell(logfile),
+    telling(S),
+    set_stream(S,alias(user_error)).
+
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -8,8 +12,11 @@
 :- use_module(library(ctypes)).
 :- pce_autoload(finder, library(find_file)).
 :- pce_global(@finder, new(finder)).
+
 	
-level_cmd_dir('/usr/bin/tail','/home/peter/src/PACE').
+%level_cmd_dir(['/usr/bin/python','fakelevel.py'],'/home/peter/src/PACE').
+%level_cmd_dir(['/usr/bin/tail','-1',levels],    '/home/peter/src/PACE').
+level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
 	
 :- [gbutton].
 
@@ -34,6 +41,16 @@ level_cmd_dir('/usr/bin/tail','/home/peter/src/PACE').
 %   Blue when parameter values are low
 %   Orange when parameters are high
 %   Green when paramaters are in the target range
+
+% Addition 'logfile' messages: pathe_report/1 will be called on exit
+% We call append/1 because redirected logfile output has been closed.
+
+pathe_report(verbose) :-
+    writeln(yada_yada_yada),
+    writeln(verbosityyada_yada_yada).
+
+pathe_report(moderate) :-
+    writeln(yada_moderate_yada).
 
 % Create a dialog for this EvoStat
 
@@ -121,8 +138,8 @@ freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
 get_new_levels :-
-    level_cmd_dir(Tail,Cwd),
-    process_create(Tail,['-1',levels],[stdout(pipe(Out)),cwd(Cwd)]),
+    level_cmd_dir([Cmd|Args],Cwd),
+    process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
     read(Out, Levels),
     close(Out),
     writeln(gotLevels(Levels)),
@@ -253,9 +270,10 @@ update10(W) :->
     member(Object, CList),
     component(_Name,Object),        % If one has been created
     send(Object, update),
-#    writeln(update10(completed(Name))),
+%    writeln(update10(completed(Name))),
     fail.
-update10(W) :-> true.
+
+update10(_W) :-> true.
 %    writeln(finishedupdate10(W)).
     
 :- pce_end_class.
@@ -306,33 +324,33 @@ prompt(W, Value:name) :<-
 
 aristotle([
   cellstat(c5, right,
-   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(200,80)]),
+   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(200,80)]),
   snapshot(c9, right, [ shape(650,500) ]),
   lagoon(l1,  next_row,
-   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
+   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
   lagoon(l2,  right,
-   [ btaddr('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
+   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
   pumps(p6, right,
-   [ btaddr('98:D3:31:40:1D:A4') ])
+   [ mac('98:D3:31:40:1D:A4') ])
 ]).
 
 buffon([
   ebutton(c5, right,
-   [ btaddr('98:D3:31:70:2B:70'), shape(40,20)]),
+   [ mac('98:D3:31:70:2B:70'), shape(40,20)]),
   snapshot(c9, right,   [ shape(650,500) ]),
   ebutton(l1,  right,
-   [ btaddr('98:D3:31:70:2B:70'), shape(200,12)]),
+   [ mac('98:D3:31:70:2B:70'), shape(200,12)]),
   ebutton(l2,  right,
-   [ btaddr('98:D3:31:70:2B:70'), shape(200,12)]),
+   [ mac('98:D3:31:70:2B:70'), shape(200,12)]),
   ebutton(p6, next_row,
-   [ btaddr('98:D3:31:40:1D:A4') ])
+   [ mac('98:D3:31:40:1D:A4') ])
 ]).
 
-%  lagoon(   lagoon1, next_row, [ btaddr('98:D3:31:70:2B:70'),
+%  lagoon(   lagoon1, next_row, [ mac('98:D3:31:70:2B:70'),
 % The hostname is the default
 'Evostat1'([
  cellstat(cellstat,  below,   [ shape(240,60),font(font(times,roman,18))]),
-% pumps( pumprail, next_row,   [  btaddr('98:D3:31:70:2B:70')]),
+% pumps( pumprail, next_row,   [  mac('98:D3:31:70:2B:70')]),
  pumps( pumprail, next_row,   [  ]),
  spacer(        x1, next_row, [color(blue)]),
  snapshot(     cam, next_row, [ shape(650,420),image('mypic1.jpg')]),
@@ -358,6 +376,7 @@ create(Dialog, Component) :-
 	new(@Name, Class),
 	maplist(send(@Name), Data), % Process all before appending
 	send(Dialog, append(@Name, Position)),
+	writeln(component(Name,@Name)),
         assert(component(Name,@Name)).
 
 about_atom(About) :-
@@ -365,12 +384,13 @@ about_atom(About) :-
 	read_pending_input(Handle,FileContent,[]),
 	atom_chars(About,FileContent).
 
-c :- ( current_prolog_flag(argv,[_,Name|_])
-     -> c(Name)
-     ; gethostname(Host),
-       c(Host)
-     ).
+% gethostname returns the full domain name on some systems
+hostname_root(H) :-
+     gethostname(Name),
+     atom_chars(Name,Cs),
+     ( append(RCs,[0'.|_],Cs) -> atom_chars(H,RCs) ; H = Name ).
 
+c :- hostname_root(Host), c(Host).
 
 c(Name) :-
     free(@gui),
