@@ -1,10 +1,13 @@
 bool disconnected;
 
-#define EXHIBITS 1          // WiFi Location for SSID and PASSWORD
+#define LED      13
+
+#define MUSEUMBUS   1          // WiFi Location for SSID and PASSWORD
 
 //#define SPLATSPACE 1
 //#define INNATRIX   1
-//#define INNATRIX   1
+//#define MUSUEMBUS  1
+//#define MUSUEMGUEST 1
 //#define EXHIBITS   1
 //#define HOME       1
 
@@ -18,6 +21,7 @@ WIFI w = WIFI();  // Calls Serial.begin(<baudrate>)
 void setup() 
 {
 	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
+	pinMode(13,LED);
 	w.start_server();
 	disconnected = false;
 }
@@ -31,7 +35,8 @@ void respondToRequest(void)
 	{
 		if (w.accept() < 0) {
 			delay(2000);
-//			Serial.println("still waiting...");
+		} else {
+			w.flash(20);
 		}
 	}
 	else

@@ -28,15 +28,7 @@ class WIFI
   }
 
   void initialize() {
-      Serial.println("AT");
-      delay(3000);
-      bool b = readline();
-      int cm = strncmp("OK",buf,2);
-      //      if (b && cm)
-      //	mysend("seemed okay");
-      //      else
-      //	mysend("error0 not AT-OK");
-      //      mysend(buf);
+      Serial.println("ATE0");  delay(1000); okResponse(5);
   }
 
   char * mysend(char *data)
@@ -48,6 +40,7 @@ class WIFI
 	  Serial.print(",");
 	  Serial.println(strlen(data)+2);
 	  Serial.println(data);
+	  Serial.println("");
 	}
       return data;
     }
@@ -75,7 +68,7 @@ class WIFI
       int value,len,conid;
       if (readline()) // Fills buf or returns false
 	{
-	  if ( sscanf(buf,"+IDP=%d,%d:%c%c%d",&id,&len,pc1,pc2,pvalue) > 2)
+	  if ( sscanf(buf,"+IPD,%d,%d:%c%c%d",&id,&len,pc1,pc2,pvalue) > 2)
 	    return true;
 	  if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
 	    {
@@ -111,32 +104,64 @@ class WIFI
     return true;
   }
 
-  bool okResponse()    // Read all available input into buf
+  bool okResponse(int n)    // Read all available input into buf
   {
-    delay(1000);
-    int i = 0;
+    delay(1000);      // Give the data a chance to arrive
+    int len = 0;
     while (Serial.available() > 0)
 	{
-	  buf[i++] = Serial.read();
+	  buf[len++] = Serial.read();
 	  if (Serial.available() == 0)
 	    delay(500);
 	}
-      buf[i] = NULL;
-      if (i == 0) return false;
-      return true;
+    buf[len] = NULL;
+    if (len>0)
+      {
+	int i;
+	for (i=0;i<len-3;i++)
+	  {
+	    if ( strncmp(&buf[i],"OK",2) == 0 )
+	      {
+		flash(n);
+		return true;
+	      }
+	  }
+      }
+    flash(1);
+    return false;
+  }
+
+  void flash(int n)
+  {
+    int i;
+    int dly = ( n==1 ? 1000 : 100 ); // One long or N short flashes
+    for (i=0;i<n;i++) {
+      digitalWrite(LED,1);
+      delay(dly);
+      digitalWrite(LED,0);
+      delay(dly);
+    }
   }
 
   void start_server() 
   {
     if (once) {
+      delay(5000);
       initialize();
-      Serial.println("AT+CWQAP");     delay(4000); okResponse();
-      Serial.println(SECRETJOIN);     delay(10000); okResponse();
-      Serial.println("AT+CWMODE=3");  delay(1000); okResponse();
-      Serial.println("AT+CIPMUX=1");  delay(1000); okResponse();
+      Serial.println("AT+CWQAP");  delay(2000); okResponse(2);
+      Serial.println("AT+CWMODE=3");  delay(1000); okResponse(3);
+
+      Serial.println(SECRETJOIN);
+      delay(10000);
+      while(!okResponse(2)) {
+	Serial.println(SECRETJOIN);
+	delay(10000);
+      }
+      Serial.println("AT+CIPMUX=1");  delay(1000); okResponse(3);
       once = false;
     }
-    Serial.println("AT+CIPSERVER=1,23"); delay(1000); okResponse();
+    Serial.println("AT+CIPSERVER=0"); delay(2000); okResponse(6);
+    Serial.println("AT+CIPSERVER=1,23"); delay(5000); okResponse(6);
  }
 
 };  // End of WIFI Class
