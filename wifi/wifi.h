@@ -3,35 +3,28 @@
 #define LIBRARY_VERSION	1.0.0
 
 /*
- * Wifi submodule (plug-in alternative for Bluetooth)
+ * Wifi submodule (alternative for Bluetooth)
  *
  * 1) Configure ESP8266 WiFi connection server and wait to be contacted
  *    WIFI w = WIFI();
  *         w.start_server();    
  *
  * 2) Accept connection and respond to requests
- *         char *cp = w.recv()    returns pointer to string buffer
- *         w.send(char buf[])     sends text addressed in buf
+ *         w.myrecv(&c1,&c2,&val) fills in 2-chars and an int
+ *         w.mysend(char *cp)     send text over link
  */
 
 class WIFI
 {
  private:
-  int id;
+  int id;           // -1 not connected, 0-10 WiFi, 100 Bluetooth
   bool once;
-  char buf[100];
-  unsigned long lastcomm;
+  int  ap;          // Index of successfully connected access point
+  char buf[100];    // Arduino Serial only has 64-byte buffer
+  unsigned long lastcomm; // mS since last interaction for (3m) timeout
 
  public:
-  WIFI() {
-    id = -1;
-    once = true;
-    lastcomm = millis();
-  }
-
-  void initialize() {
-    //    Serial.println("ATE0");  okResponse(1000, 5);
-  }
+  WIFI() { ap = -1; id = -1; once = true; lastcomm = millis(); }
 
   bool mysend(char *data)
     {
@@ -41,18 +34,23 @@ class WIFI
 	  Serial.print(id);
 	  Serial.print(",");
 	  Serial.println(strlen(data)+2);
-	  while(!Serial.available());
+	  while(!Serial.available()) delay(10);
 	  while(Serial.read() != '>') delay(100);
 	  Serial.println(data);
-	  return okResponse(1000,1);
+	  return okResponse(500,1);
 	}
       return false; // no connection?
     }
 
-  bool readline(void)  // Every line must end with \n ( \r ignored )
-  {
+  // Every line must end with \n ( \r ignored )
+  // Waits up to delay mS for some data to appear
+  bool readline(int dly)
+    {
     int i = 0;
-    while (Serial.available() > 0)  // Read a line of input
+    int incr = dly/100;
+    while (!Serial.available() && i < dly) { delay(incr); i += incr; }
+    i = 0;
+    while ( Serial.available() && i < sizeof(buf) )
       {
 	int c  = Serial.read();
 	if ( c == 13 ) continue;
@@ -70,51 +68,36 @@ class WIFI
   {
       char c1,c2;
       int value,len,conid;
-      if (readline()) // Fills buf or returns false
+      if (readline(0)) // Fills buf or returns false
 	{
 	  if ( sscanf(buf,"+IPD,%d,%d:%c%c%d",&id,&len,pc1,pc2,pvalue) > 2)
-	    return true;
-	  if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
 	    {
-	      if (conid == id) { id = -1; return false; }
+	      lastcomm = millis();  // Reset timeout
+	      return true;
 	    }
+	  if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
+	      if (conid == id) {
+		id = -1;
+		return false;
+	      }
+	}
+      if ( (millis() - lastcomm) > 480000 ) // 8 minute timeout!
+	{
+	  closeConnection(id);
+	  id = -1;
+	  start_server();
+	  lastcomm = millis();
 	}
       return false;
-  }
-
-  void respondToRequest(void)
-  {
-    char c1 = NULL, c2 = NULL;
-    int value = 0;
-    if ( myrecv(&c1,&c2,&value) )
-      {
-	process_command(c1,c2,value);
-	lastcomm = millis();
-      }
-    if ( (millis() - lastcomm) > 60000 )
-      {
-	flash(10);
-	start_server();
-	lastcomm = millis();
-      }
   }
 
   bool connected() { return (id > -1); }
   
   int accept()
   {
-    if (readline())
+    if (readline(0))
       sscanf(buf, "%d,CONNECT", &id);
     return id;
-  }
-
-  bool process_command(char c1, char c2, int value)
-  {
-    char *msg = "thanks[X][Y]";
-    msg[7] = c1;
-    msg[10] = c2;
-    mysend(msg);
-    return true;
   }
 
   bool okResponse(int dly, int n) // Read all available input into buf 
@@ -127,7 +110,7 @@ class WIFI
 	if (Serial.available() > 0) waiting = dly;
       }
     int len = 0;
-    while (Serial.available() > 0)
+    while (Serial.available() > 0 && len < sizeof(buf))
 	{
 	  buf[len++] = Serial.read();
 	  if (Serial.available() == 0)
@@ -153,61 +136,62 @@ class WIFI
   void flash(int n)
   {
     int i;
-    int dly = ( n==1 ? 1000 : 100 ); // One long or N short flashes
+    int dly = ( n==1 ? 1000 : 200 ); // One long or N short flashes
     for (i=0;i<n;i++) {
       digitalWrite(LED,1);
-      delay(dly);
+      delay(dly-100);
       digitalWrite(LED,0);
       delay(dly);
     }
   }
 
-  void old_start_server() 
+  bool closeConnection(int id)
   {
-    if (once) {
-      delay(5000);
-      initialize();
-      // AT+CWAUTOCONN=0  // No auto connect set in ESP so don't need next line
-      //      Serial.println("AT+CWQAP");  okResponse(2000,2);
-      //Serial.println("AT+CWMODE=1");  okResponse(1000,3); // Station only
-      Serial.println("AT+CWMODE=3");  okResponse(1000,3);  // Access point and Station
-
-      Serial.println(SECRETJOIN);
-      while(!okResponse(12000,2)) {
-	Serial.println(SECRETJOIN);
-      }
-      Serial.println("AT+CIPMUX=0");  okResponse(1000,3);
-      once = false;
-    }
-    Serial.println("AT+CIPSERVER=0"); okResponse(2000, 6);
-    Serial.println("AT+CIPSERVER=1,23"); okResponse(5000, 6);
- }
+    Serial.print("AT+CIPCLOSE=");
+    Serial.println(id);
+    return okResponse(1000, 9);
+  }
 
   bool atcmd(char *cmd, int dly, int numflash) 
   {
-    if (strncmp(cmd,"AT+",3)) 
+    if (strncmp(cmd,"AT",2)) 
       Serial.print("AT+");
     Serial.println(cmd);
     return okResponse(dly, numflash);
   }
 
-  bool start_server() 
+  bool joinAP() // Join first available, or known good Access Point
   {
-    atcmd("RST",1000,6);
-    delay(1000);
-    atcmd("ATE0", 1000, 5);
-    atcmd("CIPMODE=0", 1000, 4);
-    atcmd("CWAUTOCONN=0",1000, 3);
+    if (ap > -1) return (atcmd(secrets[ap].joinap, 12000, 5));
+    
+    int s;
+    for (s=0; s < NUM_SECRETS; s++)
+      if ( atcmd(secrets[s].joinap, 12000, 5) )
+	{
+	  ap = s;
+	  return true;
+	}
+    return false;
+  }
+
+  bool start_server()
+  {
+    atcmd("RST",6000, 2);
+    if ( !atcmd("ATE0", 1000, 4) )
+      {
+	id = 100;
+	return true;  // Must be bluetooth
+      }
+    atcmd("CIPMODE=0", 1000, 2);
+    atcmd("CWAUTOCONN=0",1000, 4);
     atcmd("CWQAP", 1000, 2);
-    atcmd("CWMODE=3",1000, 1);
-
-    // Allowing 12 second to connect to an access point, one
-    // long flash every 12 seconds means we are stuck here!
-    while(!atcmd(JOINAP, 12000, 6)) ;
-
-    atcmd("CIPMUX=1", 1000, 1);
-    atcmd("CIPSERVER=0", 1000, 2);
-    return atcmd("CIPSERVER=1,23",2000, 3); // All is well if CIPSERVER returns true
+    atcmd("CWMODE=3",1000, 4);
+    if ( joinAP() ) {
+      atcmd("CIPMUX=1", 1000, 2);
+      atcmd("CIPSERVER=0", 1000, 4);
+      return atcmd("CIPSERVER=1,23",2000, 2);
+    }
+    return false;
  }
 
 };  // End of WIFI Class
