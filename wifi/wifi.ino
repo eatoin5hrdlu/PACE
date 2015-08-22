@@ -17,10 +17,10 @@ void respondToRequest(void)
   char c1 = NULL, c2 = NULL;
   int value = 0;
 
-  if ( ! w.connected() )
-    w.accept();
-  else if ( w.myrecv(&c1, &c2, &value) )
-    process_command(c1, c2, value);
+  if ( !w.connected() )
+     w.accept();
+  else if (w.myrecv(&c1, &c2, &value))
+     process_command(c1, c2, value);
 }
 
 bool process_command(char c1, char c2, int value)
@@ -44,9 +44,10 @@ bool process_command(char c1, char c2, int value)
       msg[7] = 'z';
       break;
     default :
-      msg[7] = c1;
-      msg[10] = c2;
+      msg[7] = '7';
   }
+  msg[7] = c1+w.turnover();
+  msg[10] = c2;
   w.mysend(msg);
   return true;
 }
@@ -65,5 +66,3 @@ void loop()
   respondToRequest();
   delay(500);
 }
-
-

@@ -18,13 +18,14 @@ class WIFI
 {
  private:
   int id;           // -1 not connected, 0-10 WiFi, 100 Bluetooth
+  int tover;
   bool once;
   int  ap;          // Index of successfully connected access point
   char buf[100];    // Arduino Serial only has 64-byte buffer
   unsigned long lastcomm; // mS since last interaction for (3m) timeout
 
  public:
-  WIFI() { ap = -1; id = -1; once = true; lastcomm = millis(); }
+  WIFI() { ap = -1; id = -1; once = true; lastcomm = millis(); tover=0;}
 
   bool mysend(char *data)
     {
@@ -37,7 +38,7 @@ class WIFI
 	  while(!Serial.available()) delay(10);
 	  while(Serial.read() != '>') delay(100);
 	  Serial.println(data);
-	  return okResponse(500,1);
+	  return okResponse(300,1);
 	}
       return false; // no connection?
     }
@@ -46,18 +47,19 @@ class WIFI
   // Waits up to delay mS for some data to appear
   bool readline(int dly)
     {
+    int c;
     int i = 0;
     int incr = dly/100;
     while (!Serial.available() && i < dly) { delay(incr); i += incr; }
     i = 0;
     while ( Serial.available() && i < sizeof(buf) )
       {
-	int c  = Serial.read();
+	c  = Serial.read();
 	if ( c == 13 ) continue;
-	if ( c == 10 ) break;
+	if ( c == 10 || c == -1) break;
 	buf[i++] = (char)c;
 	if (Serial.available() == 0) // It is possible we're too fast
-	  delay(200);
+	  delay(100);
       }
     buf[i] = NULL;
     if (i == 0) return false;
@@ -78,6 +80,7 @@ class WIFI
 	  if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
 	      if (conid == id) {
 		id = -1;
+		tover = tover - 1;
 		return false;
 	      }
 	}
@@ -87,11 +90,13 @@ class WIFI
 	  id = -1;
 	  start_server();
 	  lastcomm = millis();
+	  tover = tover + 1;
 	}
       return false;
   }
 
   bool connected() { return (id > -1); }
+  int  turnover()  { return tover;     }
   
   int accept()
   {
@@ -106,7 +111,7 @@ class WIFI
     while (waiting < dly)  // Give the data a chance to arrive
       {
 	if ( dly > 5000 ) { delay(dly); waiting = dly; }
-	else              { delay(500);	waiting += 500;}
+	else              { delay(200);	waiting += 200;}
 	if (Serial.available() > 0) waiting = dly;
       }
     int len = 0;
@@ -114,7 +119,7 @@ class WIFI
 	{
 	  buf[len++] = Serial.read();
 	  if (Serial.available() == 0)
-	    delay(500);
+	    delay(200);
 	}
     buf[len] = NULL;
     if (len>0)
@@ -136,12 +141,10 @@ class WIFI
   void flash(int n)
   {
     int i;
-    int dly = ( n==1 ? 1000 : 200 ); // One long or N short flashes
+    int dly = ( n==1 ? 1000 : 100 ); // One long or N short flashes
     for (i=0;i<n;i++) {
-      digitalWrite(LED,1);
-      delay(dly-100);
-      digitalWrite(LED,0);
-      delay(dly);
+      digitalWrite(LED,1);  delay(dly-50);
+      digitalWrite(LED,0);  delay(dly+50);
     }
   }
 

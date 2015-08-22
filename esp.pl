@@ -62,7 +62,8 @@ readtoken(13,S, T) :- !,
 
 readtoken(C,S,[C|T]) :-
     tget0(S, C2),
-    flush_output,
+%    writeln(C2),
+%    flush_output,
     readtoken(C2,S,T).
 
 connect :-
@@ -81,6 +82,7 @@ disp(Literal) :- debug, !, write(Literal),write(' '),flush_output.
 disp(_).
 
 send_set :-
+    repeat,
     member(A,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"),
     member(B,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"),
     atom_codes(Msg,[A,B,0'9,0'0,0'1]),
@@ -93,7 +95,7 @@ send_set :-
     readtoken(C,Read,Cs),
     atom_codes(Token,Cs),
     disp(got(N,Token)),
-    sleep(2),
+    sleep(1),
     fail.
 
 send_set :- disconnect.
