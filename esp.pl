@@ -5,17 +5,11 @@
 debug.     % Remove this to silence output
 disp(D) :- (debug -> writeln(D) ; true).
 
-reset_devices :-
-    retractall(devices(_)),
-    assert(devices(0)).
+evices(N)  :- findall(x,connection(_,_,_,_),Xs), length(Xs,N).
+inputs(Is) :- findall(R,connection(_,_,R,_),Is).
+nip(Nips)  :- findall(N:I,connection(N,I,_,_),Nips).
 
-add_dev(N) :-
-    retract(devices(D)),
-    N is D + 1,
-    assert(devices(N)).
-
-disconnect :- reset_devices,
-	      findall(closed(IP),disconnect(IP),Report),
+disconnect :- findall(closed(IP),disconnect(IP),Report),
 	      disp(Report).
 
 disconnect(IP) :- retract(connection(_N,IP,R,W)),
@@ -24,8 +18,7 @@ disconnect(IP) :- retract(connection(_N,IP,R,W)),
 		  close(R,[force(true)]),
 		  close(W,[force(true)]).
 
-connect :-  reset_devices,
-	    findall(opened(IP),connect(IP),Report),
+connect :-  findall(opened(IP),connect(IP),Report),
 	    disp(Report).
 
 connect(IP) :-
@@ -46,11 +39,6 @@ replies(Replies, Timeout) :-
     wait_for_input(Inputs,Ready,Timeout),
     maplist(read_token, Ready, Replies).
 
-%( Ready = []  % Nobody's sent anything
-%     -> Replies = [timeout(Timeout)]
-%     ;  maplist(read_token, Ready, Replies)
-%    ).
-
 read_token(S, reply(N,Token) ) :-
     catch(read_line_to_codes(S, Cs),Ex,(writeln(Ex),fail)),
     connection(N,_,S,_),
@@ -65,8 +53,6 @@ random_connection(Random) :-
 start :- start(S,R),writeln(start(S,R)).
 start(S,R) :-
     connect,
-    devices(Num),
-    writeln(devices(Num)),
     thread_create(receivingThread,R,[]),
     writeln('receiving...'),
     thread_create(sendingThread,S,[]),
@@ -82,7 +68,6 @@ receivingThread :-
     replies(Tokens,20),
     disp('        REPLY'(Tokens)),
     fail.
-
 
     
 sendingThread :-
