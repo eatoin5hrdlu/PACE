@@ -10,6 +10,8 @@ int LED = 13;  // Needed for 'Serial not defined' bug
 //   void loop()
 //
 
+int seq = 0;
+
 WIFI w = WIFI();
 
 void respondToRequest(void)
@@ -17,52 +19,48 @@ void respondToRequest(void)
   char c1 = NULL, c2 = NULL;
   int value = 0;
 
-  if ( !w.connected() )
-     w.accept();
-  else if (w.myrecv(&c1, &c2, &value))
-     process_command(c1, c2, value);
+  if (Serial.available())
+  {
+    if ( !w.connected() )
+    {
+        w.accept();
+    }
+    else
+    {
+	if (w.myrecv(&c1, &c2, &value))
+	{
+	    process_command(c1, c2, value);
+        }
+    }
+  }
 }
 
 bool process_command(char c1, char c2, int value)
 {
-  char *msg = "thanks[X][Y]";
-  switch (c1)
+  char reply[40];
+
+  if (c1 == 'x' && c2 == 'x' && value == -1)
   {
-    case 'a':
-      switch (c2)
-      {
-        case 'a':
-          msg[7] = 'x';
-          break;
-        case 'b':
-          msg[7] = 'y';
-          break;
-      }
-      break;
-
-    case 'b':
-      msg[7] = 'z';
-      break;
-    default :
-      msg[7] = '7';
+    w.mysend("closed(x,x,-1).");
+    delay(1000);
+    w.reboot(3); // Nothing short of a full restart will work
   }
-  msg[7] = c1+w.turnover();
-  msg[10] = c2;
-  w.mysend(msg);
-  return true;
+  else
+  {
+    sprintf(reply, "thanks[%c][%c]%d", c1, c2, value+seq++);
+    return w.mysend(reply);
+  }
 }
-
 
 void setup()
 {
   Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
   pinMode(13, LED);
-  w.start_server();
+  w.start_wifi();
 }
-
 
 void loop()
 {
   respondToRequest();
-  delay(500);
+  delay(1000);
 }

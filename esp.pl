@@ -1,14 +1,9 @@
 :- use_module(library(socket)).
-:- dynamic connection/4.
+:- dynamic connection/4, finish/0, devices/1.
+:- [secrets].
 
-debug.
-
-wifi(milton, staMAC('18:fe:34:f3:00:75'):null, '192.168.254.43').
-wifi(milton, staMAC('18:fe:34:f3:00:64'):null, '192.168.254.30').
-wifi(milton, staMAC('18:fe:34:f3:44:28'):apMAC('1a:fe:34:f3:44:28'),'192.168.254.25').
-
-
-:- dynamic devices/1.
+debug.     % Remove this to silence output
+disp(D) :- (debug -> writeln(D) ; true).
 
 reset_devices :-
     retractall(devices(_)),
@@ -19,101 +14,91 @@ add_dev(N) :-
     N is D + 1,
     assert(devices(N)).
 
-    
-connect(AP,IP) :-
-	wifi(AP,_Mac,IP),
+disconnect :- reset_devices,
+	      findall(closed(IP),disconnect(IP),Report),
+	      disp(Report).
+
+disconnect(IP) :- retract(connection(_N,IP,R,W)),
+		  write(R,'xx-1\r\n'), % tell remote to close connection
+		  sleep(1),
+		  close(R,[force(true)]),
+		  close(W,[force(true)]).
+
+connect :-  reset_devices,
+	    findall(opened(IP),connect(IP),Report),
+	    disp(Report).
+
+connect(IP) :-
+        ssid(AP),
+	ip_ap_mac(IP, AP, _MAC),   % Generator
+	( disconnect(IP) -> true ; add_dev(N) ),
 	tcp_socket(S),
-	tcp_connect(S, IP:23),
+	catch(tcp_connect(S, IP:23),Ex,(writeln(e(Ex)),fail)),
 	tcp_open_socket(S, SP),
 	stream_pair(SP,Read,Write),
 	set_stream(Read,buffer(false)),
 	set_stream(Write,buffer(false)),
-	( retract(connection(N,IP,R,W)) % Replacement
-	 -> close(R),
-	    close(W)
-	 ;  add_dev(N)                  % New
-	),
-	assert(connection(N,IP,Read,Write)).
+	assert(connection(N,IP,Read,Write)),
+        disp(connected(N,IP)).
 
+replies(Replies, Timeout) :-
+    findall(R,connection(_,_,R,_),Inputs),
+    wait_for_input(Inputs,Ready,Timeout),
+    maplist(read_token, Ready, Replies).
 
-tget0(S,C) :-
-    catch( call_with_time_limit(20,get_code(S, C)),
-	   E,
-	   (writeln(E),fail)),!.
-    
+%( Ready = []  % Nobody's sent anything
+%     -> Replies = [timeout(Timeout)]
+%     ;  maplist(read_token, Ready, Replies)
+%    ).
+
+read_token(S, reply(N,Token) ) :-
+    catch(read_line_to_codes(S, Cs),Ex,(writeln(Ex),fail)),
+    connection(N,_,S,_),
+    atom_codes(Token,Cs).
+
 random_connection(Random) :-
     findall(connection(N,IP,R,W), connection(N,IP,R,W), Cs),
     random_member(Random,Cs),
     !.
 
-readtoken(-1,R,[]) :- % EndOfFile on a TCP Stream!! Oh No!
-    !,
-    writeln(attemptReEstablishBrokenTCPConnection(IP)),
-    connection(_N,IP,R,W),
-    closeConnection(R,W,IP),
-    connect(_AP,IP),
-    fail.
-
-readtoken(10,_,[]) :- !.
-
-readtoken(13,S, T) :- !,
-    tget0(S, C2),
-    readtoken(C2,S,T).
-
-readtoken(C,S,[C|T]) :-
-    tget0(S, C2),
-%    writeln(C2),
-%    flush_output,
-    readtoken(C2,S,T).
-
-connect :-
-    reset_devices,
-    connect(milton,IP),
-    writeln(connected(IP)),
-    fail.
-connect.
-
- main :-
+% TESTING
+start :- start(S,R),writeln(start(S,R)).
+start(S,R) :-
+    connect,
     devices(Num),
     writeln(devices(Num)),
-    send_set.
+    thread_create(receivingThread,R,[]),
+    writeln('receiving...'),
+    thread_create(sendingThread,S,[]),
+    writeln('sending...'),
+    repeat,
+    sleep(10),
+    fail.
 
-disp(Literal) :- debug, !, write(Literal),write(' '),flush_output.
-disp(_).
 
-send_set :-
+% Returns input from any of the active connections
+receivingThread :-
+    repeat, 
+    replies(Tokens,20),
+    disp('        REPLY'(Tokens)),
+    fail.
+
+
+    
+sendingThread :-
     repeat,
     member(A,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"),
     member(B,"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-    atom_codes(Msg,[A,B,0'9,0'0,0'1]),
-    random_connection(connection(N,_IP,Read,Write)),
-    write(Write,Msg),
-    write(Write,'\r\n'),
-    flush_output(Write),
-    disp(sent(N,Msg)),
-    tget0(Read, C),
-    readtoken(C,Read,Cs),
-    atom_codes(Token,Cs),
-    disp(got(N,Token)),
-    sleep(1),
-    fail.
-
-send_set :- disconnect.
-
-send_set :- halt.
-
-disconnect :-
-    reset_devices,
-    connection(_N,IP,R,W),
-    closeConnection(R,W,IP),
-    fail.
-
-closeConnection(R,W,IP) :-
-    retract(connection(_N,IP,R,W)),
-    close(R,[force(true)]),
-    close(W,[force(true)]),
-    writeln('done with'(IP)).
-
-
-    
-    
+    ( finish
+     -> disconnect,
+	retract(finish)
+     ;
+     atom_codes(Msg,[A,B,0'9,0'0,0'0,0'0]),
+     random_connection(connection(N,_,_R,Write)),
+     write(Write,Msg),
+     write(Write,'\r\n'),
+     flush_output(Write),
+     disp(sent(N,Msg)),
+     sleep(2),
+     fail
+    ).

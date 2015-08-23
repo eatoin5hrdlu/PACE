@@ -1,6 +1,7 @@
 #ifndef WIFI_v1_h
 #define WIFI_v1_h
 #define LIBRARY_VERSION	1.0.0
+#define TILDE 126 
 
 /*
  * Wifi submodule (alternative for Bluetooth)
@@ -18,29 +19,44 @@ class WIFI
 {
  private:
   int id;           // -1 not connected, 0-10 WiFi, 100 Bluetooth
-  int tover;
+  int okstate;
+  int tover;        // Count the number of forced restarts
   bool once;
   int  ap;          // Index of successfully connected access point
   char buf[100];    // Arduino Serial only has 64-byte buffer
   unsigned long lastcomm; // mS since last interaction for (3m) timeout
 
  public:
-  WIFI() { ap = -1; id = -1; once = true; lastcomm = millis(); tover=0;}
+  WIFI() {
+    ap = -1;
+    id = -1;
+    once = true;
+    lastcomm = millis();
+    tover=0;
+    okstate=0;
+  }
 
   bool mysend(char *data)
     {
+      bool sent;
+      int tries = 10;
+      int cntr = 0;
       if (id > -1) // Connected
 	{
 	  Serial.print("AT+CIPSEND=");
 	  Serial.print(id);
 	  Serial.print(",");
 	  Serial.println(strlen(data)+2);
-	  while(!Serial.available()) delay(10);
-	  while(Serial.read() != '>') delay(100);
+	  while (!Serial.available() && cntr++ < tries)
+	    delay(200);
+	  cntr = 0;
+	  while(Serial.available() &&
+		cntr++ < tries     &&
+		Serial.read() != '>' ) delay(200);
 	  Serial.println(data);
-	  return okResponse(300,1);
+	  return okResponse(1000, 2);
 	}
-      return false; // no connection?
+      return false; // no connection yet
     }
 
   // Every line must end with \n ( \r ignored )
@@ -49,50 +65,62 @@ class WIFI
     {
     int c;
     int i = 0;
-    int incr = dly/100;
-    while (!Serial.available() && i < dly) { delay(incr); i += incr; }
-    i = 0;
+    //    delay(dly);
+    // int incr = ( dly > 100 ? dly/100 : 10);
+    //    while (!Serial.available() && i < dly) { delay(incr); i += incr; }
+    //    i = 0;
     while ( Serial.available() && i < sizeof(buf) )
       {
 	c  = Serial.read();
 	if ( c == 13 ) continue;
-	if ( c == 10 || c == -1) break;
+	if ( c == 10 ) break;
 	buf[i++] = (char)c;
 	if (Serial.available() == 0) // It is possible we're too fast
-	  delay(100);
+	  delay(200);
       }
     buf[i] = NULL;
     if (i == 0) return false;
     return true;
   }
 
+  /*
+   * Only gets called if Serial.available() is true
+   */
   bool myrecv(char *pc1, char *pc2, int *pvalue)
   {
-      char c1,c2;
-      int value,len,conid;
-      if (readline(0)) // Fills buf or returns false
-	{
-	  if ( sscanf(buf,"+IPD,%d,%d:%c%c%d",&id,&len,pc1,pc2,pvalue) > 2)
-	    {
-	      lastcomm = millis();  // Reset timeout
-	      return true;
-	    }
-	  if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
-	      if (conid == id) {
-		id = -1;
-		tover = tover - 1;
-		return false;
-	      }
-	}
+    bool restart = false;
+    int len, conid;
+    *pc1 = TILDE;
+    *pc1 = TILDE;
+    *pvalue = 0;
+    if (readline(1000)) // Fills buf or returns false
+      {
+	if ( sscanf(buf,"+IPD,%d,%d:%c%c%d",&id,&len,pc1,pc2,pvalue) > 2)
+	  {
+	    lastcomm = millis();  // Reset timeout
+	    return true;
+	  }
+	if ( sscanf(buf,"%d,CLOSED", &conid) == 1 )
+	  {
+	    restart = true;
+	  }
+      }
       if ( (millis() - lastcomm) > 480000 ) // 8 minute timeout!
-	{
-	  closeConnection(id);
-	  id = -1;
-	  start_server();
-	  lastcomm = millis();
-	  tover = tover + 1;
-	}
+	restart = true;
+      if (restart)
+	reboot(1);
       return false;
+  }
+
+  void reboot(int f)
+  {
+    flash(f);
+    closeConnection();
+    delay(1000);
+    id = -1;
+    start_wifi();   // Just connection server (was start_wifi)
+    lastcomm = millis();
+    tover = tover + 1;
   }
 
   bool connected() { return (id > -1); }
@@ -100,40 +128,54 @@ class WIFI
   
   int accept()
   {
-    if (readline(0))
-      sscanf(buf, "%d,CONNECT", &id);
+    if (readline(1000)) {
+      if ( sscanf(buf, "%d,CONNECT", &id) > 0 )
+	flash(3);
+      else
+	flash(1);
+    }
     return id;
   }
 
-  bool okResponse(int dly, int n) // Read all available input into buf 
+  /*
+   * State machine to recognize OK\r\n responses
+   */
+  char sread()
   {
+    int c = Serial.read();
+    if      (okstate == 0 && c == 79 ) okstate = 1;
+    else if (okstate == 1 && c == 75 ) okstate = 2;
+    else if (okstate == 2 && c == 13 ) okstate = 3;
+    else if (okstate == 3 && c == 10 ) okstate = 4;
+    else okstate = 0;
+    return (char) c;
+  }
+
+  bool okReceived() { return okstate == 4; }
+
+  /*
+   * Read input into buf watching for "OK\r\n"
+   * okResponse will not read past the first "OK"
+   */
+  bool okResponse(int dly, int n)
+    {
     int waiting = 0;
+    okstate = 0;
     while (waiting < dly)  // Give the data a chance to arrive
       {
-	if ( dly > 5000 ) { delay(dly); waiting = dly; }
+	if ( dly > 4000 ) { delay(dly); waiting = dly; }
 	else              { delay(200);	waiting += 200;}
 	if (Serial.available() > 0) waiting = dly;
       }
     int len = 0;
     while (Serial.available() > 0 && len < sizeof(buf))
 	{
-	  buf[len++] = Serial.read();
+	  buf[len++] = sread();
+	  if (okReceived()) { flash(n);	return true; }
 	  if (Serial.available() == 0)
 	    delay(200);
 	}
     buf[len] = NULL;
-    if (len>0)
-      {
-	int i;
-	for (i=0;i<len-3;i++)
-	  {
-	    if ( strncmp(&buf[i],"OK",2) == 0 )
-	      {
-		flash(n);
-		return true;
-	      }
-	  }
-      }
     flash(1);
     return false;
   }
@@ -148,11 +190,14 @@ class WIFI
     }
   }
 
-  bool closeConnection(int id)
+  bool closeConnection()
   {
+    bool ok;
     Serial.print("AT+CIPCLOSE=");
     Serial.println(id);
-    return okResponse(1000, 9);
+    ok = okResponse(1000, 9);
+    if (ok) id = -1;
+    return ok;
   }
 
   bool atcmd(char *cmd, int dly, int numflash) 
@@ -177,24 +222,24 @@ class WIFI
     return false;
   }
 
-  bool start_server()
+  void start_wifi()
   {
-    atcmd("RST",6000, 2);
-    if ( !atcmd("ATE0", 1000, 4) )
+    bool rst = true;
+    while(rst)
       {
-	id = 100;
-	return true;  // Must be bluetooth
+	atcmd("RST", 6000, 2);
+	atcmd("ATE0", 1000, 4);
+	atcmd("CIPMODE=0", 1000, 2);
+	atcmd("CWAUTOCONN=0",1000, 4);
+	atcmd("CWQAP", 1000, 2);
+	atcmd("CWMODE=3",1000, 4);
+	if ( joinAP() )
+	  {
+	    atcmd("CIPMUX=1", 1000, 2);
+	    atcmd("CIPSERVER=0", 1000, 4);
+	    rst = !atcmd("CIPSERVER=1,23",4001, 3);;
+	  }
       }
-    atcmd("CIPMODE=0", 1000, 2);
-    atcmd("CWAUTOCONN=0",1000, 4);
-    atcmd("CWQAP", 1000, 2);
-    atcmd("CWMODE=3",1000, 4);
-    if ( joinAP() ) {
-      atcmd("CIPMUX=1", 1000, 2);
-      atcmd("CIPSERVER=0", 1000, 4);
-      return atcmd("CIPSERVER=1,23",2000, 2);
-    }
-    return false;
  }
 
 };  // End of WIFI Class
