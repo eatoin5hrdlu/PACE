@@ -1,22 +1,23 @@
 :- use_module(library(socket)).
-:- dynamic connection/4, finish/0, devices/1.
+:- dynamic connection/4, finish/0.
 :- [secrets].
 
 debug.     % Remove this to silence output
 disp(D) :- (debug -> writeln(D) ; true).
 
-evices(N)  :- findall(x,connection(_,_,_,_),Xs), length(Xs,N).
+devices(N)  :- findall(x,connection(_,_,_,_),Xs), length(Xs,N).
+devNum(N)  :- devices(M), N is M + 1.
 inputs(Is) :- findall(R,connection(_,_,R,_),Is).
 nip(Nips)  :- findall(N:I,connection(N,I,_,_),Nips).
 
 disconnect :- findall(closed(IP),disconnect(IP),Report),
 	      disp(Report).
 
-disconnect(IP) :- retract(connection(_N,IP,R,W)),
-		  write(R,'xx-1\r\n'), % tell remote to close connection
-		  sleep(1),
-		  close(R,[force(true)]),
-		  close(W,[force(true)]).
+disconnect(IP,N) :- retract(connection(N,IP,R,W)),
+		    write(R,'xx-1\r\n'), % tell remote to close connection
+		    sleep(1),
+		    close(R,[force(true)]),
+		    close(W,[force(true)]).
 
 connect :-  findall(opened(IP),connect(IP),Report),
 	    disp(Report).
@@ -24,7 +25,8 @@ connect :-  findall(opened(IP),connect(IP),Report),
 connect(IP) :-
         ssid(AP),
 	ip_ap_mac(IP, AP, _MAC),   % Generator
-	( disconnect(IP) -> true ; add_dev(N) ),
+	trace,
+	( disconnect(IP,N) -> true ; devNum(N) ),
 	tcp_socket(S),
 	catch(tcp_connect(S, IP:23),Ex,(writeln(e(Ex)),fail)),
 	tcp_open_socket(S, SP),
