@@ -1,5 +1,5 @@
-#!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
+#!/usr/bin/python -u
 #!C:/Python27/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
@@ -11,6 +11,22 @@ import cv2
 import cv2.cv as cv
 import evocv
 
+rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
+bbfp = None
+
+def on_mouse(event, x, y, flags, params):
+    global rbox
+    if event == cv.CV_EVENT_LBUTTONDOWN:
+        rbox['x1'] = x
+        rbox['y1'] = y
+    elif event == cv.CV_EVENT_LBUTTONUP:
+        rbox['x2'] = x
+        rbox['y2'] = y
+        bbfp.write("("+str(rbox['x1'])+","+str(rbox['y1'])+","+str(rbox['x2'])+","+str(rbox['y2'])+")\n")
+        bbfp.flush()
+            
+
+        
 gdb = { 'layout' : None  }
 debug = ""
 lagoon = {}
@@ -470,17 +486,21 @@ if __name__ == "__main__" :
         exit(0)
 
     (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
+    cv.SetMouseCallback('camera', on_mouse, 0)
+    bbfp = open('bbox.txt','a')
     for f in range(30) :
         img = ipcam.grab()
         if (img != None) :
-            cv2.rectangle(img,(y1,x1),(y2,x2),(0,0,255),2)
+            cv2.rectangle(img,(rbox['x1'],rbox['y1']),(rbox['x2'],rbox['y2']),(0,0,255),2)
+            cv2.rectangle(img,(y1,x1),(y2,x2),(0,255,0),2)
             cv2.imshow("camera",img)
-            if cv.WaitKey(100) == 27:
+            if cv.WaitKey(100) == 27 :
                 exit()
         else:
             print "Image grab returned None in __main__"
             exit()
     debug = debug + "done waiting for brightness to settle"
+    bbfp.close()
     previous = []
     notDone = True
     needed = 3
