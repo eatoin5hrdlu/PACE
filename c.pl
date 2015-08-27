@@ -501,11 +501,14 @@ main(Argv) :-
 save_evostat :-
         pce_autoload_all,
         pce_autoload_all,
-        qsave_program(evostat,
-                      [ % emulator(swi('bin/xpce-stub.exe')), %windows?
-                        stand_alone(true),
-                        goal(main)
-                      ]).
+        ( current_prolog_flag(windows,true)
+         -> Options = [emulator(swi('bin/xpce-stub.exe')),
+                       stand_alone(true),
+                       goal(main) ]
+        ;  Options = [ stand_alone(true), goal(main)]
+        ),
+        qsave_program(evostat, Options).
+
 
 
 
