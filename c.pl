@@ -11,12 +11,10 @@
 level_cmd_dir(['C:\\cygwin\\Python27\\python.exe','ipcam.py'],
 	       'C:\\cygwin\\home\\peterr\\src\\PACE') :-
   current_prolog_flag(windows,true), !.
-level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
 
+level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
+	      '/home/peter/src/PACE').
 
-%level_cmd_dir(['/usr/bin/python','fakelevel.py'],'/home/peter/src/PACE').
-%level_cmd_dir(['/usr/bin/tail','-1',levels],    '/home/peter/src/PACE').
-	
 :- [gbutton].
 
 :- dynamic target_value/2, current_value/4, current_value/2, screen/4.
@@ -56,7 +54,7 @@ level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
 tabs(1).
 
 :- dynamic debug/0.
-debug.
+% debug.
 
 check_file(Root) :-   % consult(foo) will work for files named foo or foo.pl
 	( exists_file(Root)
@@ -241,7 +239,7 @@ get_new_levels :-
     process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
     read(Out, Levels),
     writeln(mine(Levels)),
-%    close(Out),
+    close(Out),
     writeln(gotLevels(Levels)),
     Levels = levels(L4,L3,L2,L1),
     send(@lagoon1, setLevel, L1),
@@ -468,11 +466,14 @@ main :-      pce_main_loop(main).
 main(Argv) :-
         set_prolog_flag(save_history,false),
 	at_halt(pathe_report(verbose)),
+	(debug -> true
+        ;
 	tell(logfile),
 	telling(S),
 	set_stream(S,buffer(line)),
 	set_stream(user_error,buffer(line)),
-	set_stream(S,alias(user_error)),
+	set_stream(S,alias(user_error))
+        ),
 	writeln(argv(Argv)),
 	config_name(Root),          %  Find out configuration name
 	writeln(consult(Root)),
@@ -501,7 +502,7 @@ save_evostat :-
         pce_autoload_all,
         pce_autoload_all,
         qsave_program(evostat,
-                      [ emulator(swi('bin/xpce-stub.exe')),
+                      [ % emulator(swi('bin/xpce-stub.exe')), %windows?
                         stand_alone(true),
                         goal(main)
                       ]).

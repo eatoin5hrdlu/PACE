@@ -1,5 +1,5 @@
-#!C:/cygwin/Python27/python -u
 #!/usr/bin/python -u
+#!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
@@ -73,7 +73,7 @@ class ipCamera(object):
         self.usbcam = None
         if isinstance(self.params['mac'],int) :
             print "MAC indicates that we are using a USB camera"
-            self.usbcam = cv2.VideoCapture(self.params['MAC'])
+            self.usbcam = cv2.VideoCapture(self.params['mac'])
             self.ip = None
         else :
             self.ip = self.ValidIP(self.params['mac'])
