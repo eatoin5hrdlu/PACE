@@ -1,8 +1,3 @@
-:-  at_halt((append(logfile),pathe_report(verbose))),
-    tell(logfile),
-    telling(S),
-    set_stream(S,alias(user_error)).
-
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -13,14 +8,18 @@
 :- pce_autoload(finder, library(find_file)).
 :- pce_global(@finder, new(finder)).
 
-	
+level_cmd_dir(['C:\\cygwin\\Python27\\python.exe','ipcam.py'],
+	       'C:\\cygwin\\home\\peterr\\src\\PACE') :-
+  current_prolog_flag(windows,true), !.
+level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
+
+
 %level_cmd_dir(['/usr/bin/python','fakelevel.py'],'/home/peter/src/PACE').
 %level_cmd_dir(['/usr/bin/tail','-1',levels],    '/home/peter/src/PACE').
-level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
 	
 :- [gbutton].
 
-:- dynamic target_value/2, current_value/4, current_value/2.
+:- dynamic target_value/2, current_value/4, current_value/2, screen/4.
 :- dynamic component/2.
 
 %
@@ -41,22 +40,122 @@ level_cmd_dir(['/usr/bin/python','ipcam.py','indoor'],'/home/peter/src/PACE').
 %   Blue when parameter values are low
 %   Orange when parameters are high
 %   Green when paramaters are in the target range
+% To create your own configuration edit a copy of template.pl named
+%  <hostname>.pl (or <evostatname>.pl if more than one on the same computer).
+% The 'evostat' program reads this file and creates <hostname>.settings
+% for the the Python programs (ipcam.py, level.py, fluor.py, pH.py)
+%
+% You can edit the .settings file to test/debug the Python programs
+% but it will be overwritten whenever you run: 'evostat'
+%
+:- use_module(library(lists), [ flatten/2 ] ).
 
+:- dynamic config/1.       % Loaded configuration
+:- dynamic supress/1.      % Terms to exclude from dictionary (see grammar below)
+:- dynamic tabs/1.
+tabs(1).
+
+:- dynamic debug/0.
+debug.
+
+check_file(Root) :-   % consult(foo) will work for files named foo or foo.pl
+	( exists_file(Root)
+        -> true
+        ; concat_atom([Root,'.pl'],File),
+	  exists_file(File)
+        ).
+
+% config_name(-Root)
+
+config_name(Root) :-
+	current_prolog_flag(argv,[_Exe|Args]),  % Command-line argument
+	member(Root,Args),
+	check_file(Root),
+	!.
+
+config_name(Root) :-
+	gethostname(Name),    % <HOSTNAME>.pl configuration file
+	atom_chars(Name,Cs),
+	( append( RCs,['.'|_],Cs ) % Could be full domain name ('x.y.com')
+        -> atom_chars(Root,RCs)
+        ;  Root = Name
+        ),
+	check_file(Root).
+
+% Convert Prolog term to Python dictionary
+
+pl2PythonDict(Data, PyAtom) :-       % Generate a Python dictionary string
+	pl2py(Data, PythonDict, []),
+	flatten(['{\n',PythonDict,'}\n'], Flat),
+	concat_atom(Flat, PyAtom).
+
+quote_atom(false,'None') :- !.
+quote_atom([A],Q) :- quote_atom(A,Q).
+quote_atom(N,N)   :- number(N).
+quote_atom(A,Q)   :- atom(A), concat_atom(['''',A,''''],Q).
+
+% DCG versions
+quote_atom(false) --> ['None'].  % None is Python's 'false'
+quote_atom([A])   --> quote_atom(A).
+quote_atom(N)     --> {number(N)},[N].
+quote_atom(A)     --> {atom(A)}, ['''',A,''''].
+
+quote_atoms([],[], _).
+quote_atoms([A],[Q],_) :- quote_atom(A,Q).
+quote_atoms([A|T],[Q,Spacer|QT],Spacer) :- quote_atom(A,Q), quote_atoms(T,QT,Spacer).
+
+%DCG versions
+quote_atoms([],_)         --> [].
+quote_atoms([A],_)        --> quote_atom(A).
+quote_atoms([A|T],Spacer) --> quote_atom(A), [Spacer], quote_atoms(T,Spacer).
+
+tabin  --> { retract(tabs(N)), NN is N + 1, assert(tabs(NN)) }.
+tabout --> { retract(tabs(N)), NN is N - 1, assert(tabs(NN)) }.
+
+indent     --> { tabs(N) }, indent(N).
+indent(N)  --> { N<1},  !.
+indent(N)  --> { N>0, NN is N-1}, indentation, indent(NN).
+
+indentation --> ['       '].
+
+pl2py([])    --> !, [].
+pl2py(Term)  --> { supress(Term)  }, !, [].
+pl2py(A)     --> { quote_atom(A,Q)}, !, [Q].
+pl2py([H])   --> !, pl2py(H), [' \n'].
+pl2py([H|T]) --> !, indent, pl2py(H), pl2py(T).
+
+pl2py(Term) --> { Term =.. [F|[A]],   % SINGLE f(a)
+	          quote_atom(F,QF),
+	          quote_atom(A,QA),
+		  !
+                },
+		[QF, ' :  ', QA, ',\n'].
+
+pl2py(Term) --> { Term =.. [F|[A|As]],    % TUPLE   f(a,b,...)
+	          quote_atom(F,QF),
+	          quote_atoms([A|As], Str, ','),
+                  !
+                },
+	        [QF,' : (', Str, '),\n' ].
+
+pl2py(Term) --> { Term =.. [F|Args],  % NESTED DICTIONARY  f(g(a),...)  
+	          quote_atom(F, QF)
+	        },
+		[QF, ' :  {'],
+		pl2py(Args),
+		['      }'].
+                 
 % Addition 'logfile' messages: pathe_report/1 will be called on exit
 % We call append/1 because redirected logfile output has been closed.
 
 pathe_report(verbose) :-
+    append(logfile),
     writeln(yada_yada_yada),
     writeln(verbosityyada_yada_yada).
 
 pathe_report(moderate) :-
+    append(logfile),
     writeln(yada_moderate_yada).
-
-% Create a dialog for this EvoStat
-
-screen(aristotle, 680, 800, point(50,10)).
-screen(darwin, 680, 838, point(50,0)).
-screen('Evostat1', 680, 900, point(50,0)).
 
 resize(Thing) :-
     screen(_,_,Height,_),
@@ -141,7 +240,8 @@ get_new_levels :-
     level_cmd_dir([Cmd|Args],Cwd),
     process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
     read(Out, Levels),
-    close(Out),
+    writeln(mine(Levels)),
+%    close(Out),
     writeln(gotLevels(Levels)),
     Levels = levels(L4,L3,L2,L1),
     send(@lagoon1, setLevel, L1),
@@ -154,13 +254,12 @@ get_new_levels :-
 get_new_levels :- 
     writeln(failed(levelupdate)).
 
-
 :- pce_begin_class(evostat, dialog, "PATHE Control Panel").
 
 initialise(W, Label:[name]) :->
           "Initialise the window and fill it"::
           send_super(W, initialise(Label)),
-          screen(Label, WinWidth, WinHeight, Location),
+          screen(Label,WinWidth,WinHeight,Location),
           send(W, size, size(WinWidth, WinHeight)),
 
 % MENU BAR
@@ -183,12 +282,12 @@ initialise(W, Label:[name]) :->
 				    menu_item(debug,
 					      message(@prolog, manpce))
 				  ]),
-	 call(Label, Components),
+         call(Label,Components),
          findall(_,(component(_,Obj),free(Obj)),_), % Clear out previous
 	 maplist(create(@gui), Components),
 	 new(Msg1, message(W, update10)),
 	 free(@ut),
-	 send(W, attribute, attribute(timer, new(@ut, timer(4.0, Msg1)))),
+	 send(W, attribute, attribute(timer, new(@ut, timer(20.0, Msg1)))),
 	 send(@ut, start),
          send_super(W, open, Location).
 
@@ -322,50 +421,6 @@ prompt(W, Value:name) :<-
 
 :- pce_end_class.
 
-aristotle([
-  cellstat(c5, right,
-   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(200,80)]),
-  snapshot(c9, right, [ shape(650,500) ]),
-  lagoon(l1,  next_row,
-   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
-  lagoon(l2,  right,
-   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
-  pumps(p6, right,
-   [ mac('98:D3:31:40:1D:A4') ])
-]).
-
-buffon([
-  ebutton(c5, right,
-   [ mac('98:D3:31:70:2B:70'), shape(40,20)]),
-  snapshot(c9, right,   [ shape(650,500) ]),
-  ebutton(l1,  right,
-   [ mac('98:D3:31:70:2B:70'), shape(200,12)]),
-  ebutton(l2,  right,
-   [ mac('98:D3:31:70:2B:70'), shape(200,12)]),
-  ebutton(p6, next_row,
-   [ mac('98:D3:31:40:1D:A4') ])
-]).
-
-%  lagoon(   lagoon1, next_row, [ mac('98:D3:31:70:2B:70'),
-% The hostname is the default
-'Evostat1'([
- cellstat(cellstat,  below,   [ shape(240,60),font(font(times,roman,18))]),
-% pumps( pumprail, next_row,   [  mac('98:D3:31:70:2B:70')]),
- pumps( pumprail, next_row,   [  ]),
- spacer(        x1, next_row, [color(blue)]),
- snapshot(     cam, next_row, [ shape(650,420),image('mypic1.jpg')]),
- spacer(        x2, next_row, []),
- lagoon(   lagoon1, next_row, [
-                             temp(37.9), od(0.4), LS, LF]),
- lagoon(   lagoon2, right, [ temp(37.9), od(0.4), LS, LF]),
- lagoon(   lagoon3, right, [ temp(37.9), od(0.4), LS, LF]),
- lagoon(   lagoon4, right, [ temp(37.9), od(0.4), LS, LF]),
- spacer(        x3, next_row, [color(darkgreen)]),
- sampler(autosampler, next_row, [ shape(400,30),font(font(times,roman,20)) ])
-]) :-
- LS = shape(142,60),
- LF = font(font(times,roman,14)).
-
 % Initializers are extra arguments to the constructor
 % Data is a list of messages to continue initializing the object
 
@@ -388,9 +443,7 @@ about_atom(About) :-
 hostname_root(H) :-
      gethostname(Name),
      atom_chars(Name,Cs),
-     ( append(RCs,[0'.|_],Cs) -> atom_chars(H,RCs) ; H = Name ).
-
-c :- hostname_root(Host), c(Host).
+     ( append(RCs,['.'|_],Cs) -> atom_chars(H,RCs) ; H = Name ).
 
 c(Name) :-
     free(@gui),
@@ -399,8 +452,63 @@ c(Name) :-
     get(@gui, prompt, Reply),
     (Reply = quit -> send(@gui, destroy); true ).
 
+% Making a Prolog executable (saved-state)
+% :- [c],save_evostat.
+% main(Argv) :-  start application here, using passed arguments from Argv
+%
+
+%
+% Configuration <name> is either a command-line argument or <hostname>
+% The corresponding Prolog file ( <name>.pl ) must exist.
+% Load configuration and generate Python .settings (dictionary) file. 
 
 
- 				 
+main :-      pce_main_loop(main).
+
+main(Argv) :-
+        set_prolog_flag(save_history,false),
+	at_halt(pathe_report(verbose)),
+	tell(logfile),
+	telling(S),
+	set_stream(S,buffer(line)),
+	set_stream(user_error,buffer(line)),
+	set_stream(S,alias(user_error)),
+	writeln(argv(Argv)),
+	config_name(Root),          %  Find out configuration name
+	writeln(consult(Root)),
+	consult(Root),              % Consult it
+	config(List),                         % Get the configuration data
+	writeln(configuration(List)),
+
+	member(screen(W,H,Pos), List),
+	assert(screen(Root,W,H,Pos)),
+
+	member(layout(Components),List),
+	Layout =.. [Root,Components],
+	assert(Layout),
+	writeln(Layout),
+
+	assert(supress(layout(_))),           % Leave this out of the dictionary
+	assert(supress(screen(_,_,_))),       %     '' 
+	pl2PythonDict(List, PyString),        % Convert to Python Dictionary
+	concat_atom([Root,'.settings'],File), % Write it out
+	tell(File),
+	write(PyString),
+	told,
+	c(Root).
+
+save_evostat :-
+        pce_autoload_all,
+        pce_autoload_all,
+        qsave_program(evostat,
+                      [ emulator(swi('bin/xpce-stub.exe')),
+                        stand_alone(true),
+                        goal(main)
+                      ]).
+
+
+
+
+
 
 

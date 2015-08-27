@@ -70,14 +70,14 @@ class EvoCv(object):
                 image = cv2.add(cv2.multiply(image,scale),offset)
         if (image == None) :
             print "image is None after add/mulitply in contrast!"
-        self.showUser(image,4000)
+        self.showUser(image,200)
         (ret,img) = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
         if (ret == False) :
             print "Thresholding failed?"
             return None
         if (img == None) :
             print "img is None after binary threshold in contrast"
-        self.showUser(img,1000)
+        self.showUser(img, 200)
         # ret value is threshold (127.0) not True - False
         return img
 

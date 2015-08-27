@@ -22,8 +22,9 @@ def on_mouse(event, x, y, flags, params):
     elif event == cv.CV_EVENT_LBUTTONUP:
         rbox['x2'] = x
         rbox['y2'] = y
-        bbfp.write("("+str(rbox['x1'])+","+str(rbox['y1'])+","+str(rbox['x2'])+","+str(rbox['y2'])+")\n")
-        bbfp.flush()
+        if (not bbfp is None):
+            bbfp.write("("+str(rbox['x1'])+","+str(rbox['y1'])+","+str(rbox['x2'])+","+str(rbox['y2'])+")\n")
+            bbfp.flush()
             
 
         
@@ -52,29 +53,32 @@ class ipCamera(object):
 
     def __init__(self):
         global debug
-        if (len(sys.argv) < 2 and 
-            os.path.isfile(socket.gethostname() + ".settings")):
-            f = open(socket.gethostname() + ".settings",'r')
-        elif (os.path.isfile(sys.argv[1] + ".settings")) :
-            debug = debug + 'Using configuration in  ' + sys.argv[1] + '.settings'
-            f = open(sys.argv[1] + ".settings",'r')
-        else :
-            print "ipCamera object requires config file './<hostname>.settings'"
-            print "Create one by modifying the included 'template.settings'"
+        self.params = None
+        for root in sys.argv:  # See if anything on the command-line matches a .setting file
+            if os.path.isfile(root + ".settings") :
+                self.configFile = root + ".settings"
+                self.params = eval(open(self.configFile,'r').read())
+                break
+
+        if (self.params == None and os.path.isfile(socket.gethostname()+".settings") ) :
+            self.configFile = socket.gethostname() + ".settings"
+            self.params = eval(open(self.configFile, 'r').read())
+
+        if (self.params == None) :
+            print "requires('", sys.argv[0] + "', or(config_file('<hostname>.settings'),config_file('<evostatname>.settings')),'Create one by modifying template.pl, renaming it to <hostname>.pl and running evostat')."
             exit(1)
-        self.params = eval(f.read())
-        f.close()
+
         self.camType = self.params['camera']
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
-        if isinstance(self.params['MAC'],int) :
+        if isinstance(self.params['mac'],int) :
             print "MAC indicates that we are using a USB camera"
             self.usbcam = cv2.VideoCapture(self.params['MAC'])
             self.ip = None
         else :
-            self.ip = self.ValidIP(self.params['MAC'])
+            self.ip = self.ValidIP(self.params['mac'])
             if (self.ip == None) :
-                print self.params['MAC'], " is not a valid IP/MAC for a Camera"
+                print self.params['mac'], " is not a valid IP/MAC for a Camera"
                 exit(1)
             self.url = "http://" + self.ip + self.params['picCmd'] + self.params['userpwd']
             debug = debug + "Using URL: " + self.url
@@ -193,7 +197,7 @@ class ipCamera(object):
         return None
 
     def lagoonImage(self):
-        (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
+        (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
         image = self.grab()
         if (image == None) :
             print "no image from camera."
@@ -230,7 +234,7 @@ class ipCamera(object):
         colors = {0:"blue", 1:"green", 2:"red" }
         cv2.putText(img,colors[color],(10,80),cv2.FONT_HERSHEY_PLAIN,4.0,(240,80,200),2)
 
-    def updateLevels(self,pause=100) :
+    def updateLevels(self,pause=10) :
         """Levels are a percentage of the lagoon height (specified at the top of this file)
         To use mL as our standard unit of liquid level, we should add scaling param to evo.settings"""
         global debug
@@ -268,12 +272,12 @@ class ipCamera(object):
         debug = debug + "Levels " + str(Levels) + "\n>>>>>>>>>>>>>>>>>>>>\n"
         return Levels
 
-    def updateLagoons(self,pause=100) :
+    def updateLagoons(self,pause=10) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         global debug
         debug = debug + "updateLagoons\n"
         numblobs = 0
-        needed = ipcam.params['NumLagoons']
+        needed = ipcam.params['numLagoons']
         while (numblobs < needed) :
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             debug = debug + "Frame shape:" + str(frame.shape) + "\n"
@@ -323,7 +327,7 @@ class ipCamera(object):
             outlines.append((l[0],l[1]-(self.params['lagoonHeight']-l[3]), l[2],self.params['lagoonHeight']))
         return outlines
 
-    def drawLagoons(self, image, pause=200) :
+    def drawLagoons(self, image, pause=10) :
         global seq
         global toggle
         global lagoon
@@ -363,7 +367,7 @@ class ipCamera(object):
                 if (temp == None) :
                     debug = debug + "Failed to get image from camera\n"
                     tries = tries + 1
-                    time.sleep(1000)
+                    time.sleep(100)
             if (temp == None) :
                 print "Giving up on camera connection"
                 return None
@@ -421,37 +425,13 @@ def load(name, file, default_dict) :
 def getFluor(ipcam, file) :
     basefile = './baseline.jpg'
     baseline = None
-    fluxfile = './flux'
-    if (gdb['layout'] == None) :
-	load('layout', file, {
-            'LagoonRegion' : (650,180,940,620),
-            'lagoon1' :   (67, 13, 60, 210),
-            'lagoon2' :  (151, 14, 60, 210),
-            'lagoon3' :   (226, 10, 59, 210),
-            'lagoon4' :   (299, 16, 60, 210),
-            'NumLagoons'   :    4,
-            'Frames'       :   80,
-            'lagoonHeight' : 210,    # Can be thought of as the divisor for levelScale
-            'levelScale'   : 100,   # 100 will give level as percentage of lagoonHeight
-            'camera'       : 'outdoor',
-            'rotate'       : 90,
-            'MAC'          : "00:62:6e:4f:17:d9",
-            'defaultIP'    : "172.16.3.123",
-            'userpwd'      :  "&usr=scrapsec&pwd=lakewould",
-            'brightness'   :  60,   # 0-100 for outdoor camera
-            'brightnessCmd': ":88/cgi-bin/CGIProxy.fcgi?cmd=setBrightness&brightness=",
-            'contrast'     :  30,   # 0-100 for outdoor camera
-            'contrastCmd'  : ":88/cgi-bin/CGIProxy.fcgi?cmd=setContrast&constrast=", # NB: Foscam typo
-            'picCmd'       : ":88/cgi-bin/CGIProxy.fcgi?cmd=snapPicture2&usr=scrapsec&pwd=lakewould"
-            })
-
     result = None
     cntr = 0
     if (os.path.exists(basefile)) :
         baseline = cv2.split(cv2.imread(basefile))[1]
     elif ( not 'baseline' in sys.argv) :
         print "Run [flux baseline] to create dark heat image file"
-    frames = gdb['layout']['Frames']
+    frames = ipcam.params['frames']
     orig = ipcam.grab()
     fluor = orig[:,:,1]               # FIRST GREEN IMAGE
     while(cntr < frames) :
@@ -485,10 +465,10 @@ if __name__ == "__main__" :
         print 'bailing out early'
         exit(0)
 
-    (x1,y1,x2,y2) = ipcam.params['LagoonRegion']
+    (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
     cv.SetMouseCallback('camera', on_mouse, 0)
     bbfp = open('bbox.txt','a')
-    for f in range(30) :
+    for f in range(1) :
         img = ipcam.grab()
         if (img != None) :
             cv2.rectangle(img,(rbox['x1'],rbox['y1']),(rbox['x2'],rbox['y2']),(0,0,255),2)
@@ -501,12 +481,13 @@ if __name__ == "__main__" :
             exit()
     debug = debug + "done waiting for brightness to settle"
     bbfp.close()
+    bbfp = None
     previous = []
     notDone = True
     needed = 3
     while(notDone) :
         ipcam.updateLagoons(pause=10) # blob contours shown for 4 seconds
-        if ( ipcam.updateLevels(pause=100) == None) :
+        if ( ipcam.updateLevels(pause=10) == None) :
             continue
         for i in range(len(previous)) :
             for k in Levels.keys() :
