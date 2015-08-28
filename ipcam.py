@@ -94,16 +94,27 @@ class ipCamera(object):
             return True
         return False
 
-    def rotateImage(self, img, angle):
-        if (self.nullImage(img,"rotateImage 1")) :
-            return None
-        img = cv2.transpose(img)
-        if (self.nullImage(img,"rotateImage 2")) :
-            return None
-        img = cv2.flip(img,flipCode=0)
-        if (self.nullImage(img,"rotateImage 3")) :
-            return None
-        return(img)
+#    def rotateImage(self, img, angle):
+#        if (self.nullImage(img,"rotateImage 1")) :
+#            return None
+#        img = cv2.transpose(img)
+#        if (self.nullImage(img,"rotateImage 2")) :
+#            return None
+#        img = cv2.flip(img,flipCode=0)
+#        if (self.nullImage(img,"rotateImage 3")) :
+#            return None
+#        return(img)
+
+    def rotateImage(self, img, angle=90):
+        """+-90 degree rotations are fast and do not crop"""
+        if (angle == 90) :
+            return(cv2.flip(cv2.transpose(img),flipCode=0))
+        elif (angle == -90) :
+            return(cv2.flip(cv2.transpose(img),flipCode=1))
+        else :
+            center = (img.shape[1]/2.0,img.shape[0]/2.0)
+            rotate = cv2.getRotationMatrix2D(center, angle, 1.0)
+            return cv2.warpAffine(img, rotate, (img.shape[1], img.shape[0]))
 
 #        cv.Transpose(img,timg)
 #cv.SaveImage("rotated_clockwise.jpg", timg)
@@ -202,6 +213,7 @@ class ipCamera(object):
         if (image == None) :
             print "no image from camera."
             exit()
+        self.exportImage(image)
         return image[x1:x2,y1:y2,:] # cropped for lagoons
 #        return image
 
@@ -317,6 +329,7 @@ class ipCamera(object):
                 ln = ln + 1
             else :
                 pbb = lagoons[ln-1]
+
                 if bb[0] > (pbb[0]+pbb[2]) :
                     lagoons.append(bb)
                     ln = ln + 1
@@ -327,8 +340,14 @@ class ipCamera(object):
             outlines.append((l[0],l[1]-(self.params['lagoonHeight']-l[3]), l[2],self.params['lagoonHeight']))
         return outlines
 
-    def drawLagoons(self, image, pause=10) :
+    def exportImage(self, image) :
         global seq
+        seq2 = seq + 1
+        cv2.imwrite("mypic"+str(seq2)+".jpg",cv2.resize(image, self.params['imageSize']))
+        if (os.path.exists("mypic"+str(seq)+".jpg")) :
+            os.remove("mypic"+str(seq)+".jpg")
+
+    def drawLagoons(self, image, pause=10) :
         global toggle
         global lagoon
         global debug
@@ -340,11 +359,6 @@ class ipCamera(object):
             i = i + 1
         if (image != None) :
             cv2.imshow("camera", image)
-            dispimage = cv2.resize(image,(650,550))
-            if (os.path.exists("mypic"+str(seq)+".jpg")) :
-                os.remove("mypic"+str(seq)+".jpg")
-            seq = seq + 1
-            cv2.imwrite("mypic"+str(seq)+".jpg",dispimage)
             if cv.WaitKey(pause) == 27:
                 return
         else :
@@ -474,7 +488,7 @@ if __name__ == "__main__" :
             cv2.rectangle(img,(rbox['x1'],rbox['y1']),(rbox['x2'],rbox['y2']),(0,0,255),2)
             cv2.rectangle(img,(y1,x1),(y2,x2),(0,255,0),2)
             cv2.imshow("camera",img)
-            if cv.WaitKey(100) == 27 :
+            if cv.WaitKey(400) == 27 :
                 exit()
         else:
             print "Image grab returned None in __main__"
@@ -485,9 +499,11 @@ if __name__ == "__main__" :
     previous = []
     notDone = True
     needed = 3
-    while(notDone) :
+    tries = 3;
+    while(notDone and tries > 0) :
         ipcam.updateLagoons(pause=10) # blob contours shown for 4 seconds
         if ( ipcam.updateLevels(pause=10) == None) :
+            tries = tries - 1
             continue
         for i in range(len(previous)) :
             for k in Levels.keys() :
@@ -513,11 +529,14 @@ if __name__ == "__main__" :
         else:
             debug = debug + str(howmany) + " : " + str(previous)
             
-    levels = "levels( "+", ".join([str(Levels[k]) for k in Levels.keys()])+").\n"
-    print levels
-    levelfile = open('./levels','a')
-    levelfile.write(levels)
-    levelfile.close()
+    if (tries == 0) :
+        print "levels(80,60,40,20)."
+    else :
+        levels = "levels( "+", ".join([str(Levels[k]) for k in Levels.keys()])+").\n"
+        print levels
+        levelfile = open('./levels','a')
+        levelfile.write(levels)
+        levelfile.close()
 
 #    ipcam.bioBlobs(2,lagoon_position['Lagoon1'])
 #    ipcam.bioBlobs(1,lagoon_position['Lagoon2'])
@@ -527,4 +546,21 @@ if __name__ == "__main__" :
 #    showThisColor(0)
 #    showThisColor(1)
 #    showThisColor(2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

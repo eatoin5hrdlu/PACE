@@ -8,6 +8,7 @@
 
 config( [
 	 numLagoons(4),
+         imageSize(600,500),
 	 lagoonRegion(290,240,380,550),  % Area containing lagoons
 	 lagoonHeight(60),    % divisor for levelScale
 	 lagoonWidth(20),

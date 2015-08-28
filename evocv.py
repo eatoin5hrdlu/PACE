@@ -62,21 +62,21 @@ class EvoCv(object):
 
     def contrast(self, image, iter=1, scale=2.0, offset=-100) :
         if (image == None) :
-            print "contrast called with null Image"
+            self.debug = self.debug + "contrast called with null Image"
         for i in range(iter) :
             if (image == None) :
-                print "contrast loop: Image is None"
+                self.debug = self.debug + "contrast loop: Image is None"
             else :
                 image = cv2.add(cv2.multiply(image,scale),offset)
         if (image == None) :
-            print "image is None after add/mulitply in contrast!"
+            self.debug = self.debug + "image is None after add/mulitply in contrast!"
         self.showUser(image,200)
         (ret,img) = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
         if (ret == False) :
-            print "Thresholding failed?"
+            self.debug = self.debug + "Thresholding failed?"
             return None
         if (img == None) :
-            print "img is None after binary threshold in contrast"
+            self.debug = self.debug + "img is None after binary threshold in contrast"
         self.showUser(img, 200)
         # ret value is threshold (127.0) not True - False
         return img
@@ -109,19 +109,19 @@ class EvoCv(object):
             return -1
         (h,w) = img.shape
         if (h == 0 or w == 0) :
-            print "Level called with degenerate image SHAPE" + str(img.shape)
+            self.debug = self.debug + "Level called with degenerate image SHAPE" + str(img.shape)
             return -1
         img = self.contrast(img)
         if (img==None) :
-            print "Contrast returned None  (shape =" + str(img.shape)
+            self.debug = self.debug + "Contrast returned None  (shape =" + str(img.shape)
             return -1
         edges = cv2.Canny(img, 90, 100)
         if (edges == None) :
-            print "Bad Canny output so not calling HoughLinesP in level()"
+            self.debug = self.debug + "Bad Canny output so not calling HoughLinesP in level()"
             return -1
         alllines = cv2.HoughLinesP(edges, 2, 3.1415926/2.0, 1, 16, 4)
         if (alllines == None) :
-            print "No horizontal lines found in image"
+            self.debug = self.debug + "No horizontal lines found in image"
             return -1
         topline = 1000
         for lines in alllines:

@@ -18,7 +18,7 @@ level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
 :- [gbutton].
 
 :- dynamic target_value/2, current_value/4, current_value/2, screen/4.
-:- dynamic component/2.
+:- dynamic component/2, levelStream/1.
 
 %
 % System Configuration
@@ -54,7 +54,7 @@ level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
 tabs(1).
 
 :- dynamic debug/0.
-% debug.
+debug.
 
 check_file(Root) :-   % consult(foo) will work for files named foo or foo.pl
 	( exists_file(Root)
@@ -235,18 +235,19 @@ freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
 get_new_levels :-
+    ( retract(levelStream(Previous)) ->
+	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
+	close(Previous),
+        Levels = levels(L4,L3,L2,L1),
+	send(@lagoon1, setLevel, L1),
+	send(@lagoon2, setLevel, L2),
+	send(@lagoon3, setLevel, L3),
+	send(@lagoon4, setLevel, L4)
+    ; true
+    ),
     level_cmd_dir([Cmd|Args],Cwd),
     process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
-    read(Out, Levels),
-    writeln(mine(Levels)),
-    close(Out),
-    writeln(gotLevels(Levels)),
-    Levels = levels(L4,L3,L2,L1),
-    send(@lagoon1, setLevel, L1),
-    send(@lagoon2, setLevel, L2),
-    send(@lagoon3, setLevel, L3),
-    send(@lagoon4, setLevel, L4),
-    writeln(sentLevels(Levels)),
+    assert(levelStream(Out)),
     !.
 
 get_new_levels :- 
@@ -505,7 +506,8 @@ save_evostat :-
          -> Options = [emulator(swi('bin/xpce-stub.exe')),
                        stand_alone(true),
                        goal(main) ]
-        ;  Options = [ stand_alone(true), goal(main)]
+        ;  Options = [emulator('/usr/bin/xpce'),
+                       stand_alone(true), goal(main)]
         ),
         qsave_program(evostat, Options).
 
