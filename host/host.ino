@@ -35,6 +35,57 @@ Adafruit_MLX90614 mlx;
  *      Open it on schedule with other valves closed
  *  r  : Run mode (calibration off)
  */
+int LED = 13;  // Needed for 'Serial not defined' bug
+
+#include "secrets.h"
+#include "wifi.h"
+WIFI w = WIFI();
+
+// All Pathe Arduino control programs contain at least:
+//
+//   void respondToRequest(void)
+//   bool process_command(char c1, char c2, int value)
+//   void setup()
+//   void loop()
+//
+
+void wfRespondToRequest(void)
+{
+  char c1 = NULL, c2 = NULL;
+  int value = 0;
+
+  if (Serial.available())
+  {
+    if ( !w.connected() )
+    {
+        w.accept();
+    }
+    else
+    {
+	if (w.myrecv(&c1, &c2, &value))
+	{
+	    wfProcess_command(c1, c2, value);
+        }
+    }
+  }
+}
+
+bool wfProcess_command(char c1, char c2, int value)
+{
+  char reply[40];
+
+  if (c1 == 'x' && c2 == 'x' && value == -1)
+  {
+    w.mysend("closed(x,x,-1).");
+    delay(1000);
+    w.reboot(3); // Nothing short of a full restart will work
+  }
+  else
+  {
+    sprintf(reply, "thanks[%c][%c]%d", c1, c2, value);
+    return w.mysend(reply);
+  }
+}
 
 #include "valves.h"        // Includes param.h (change constants there)
 #include "temperature.h" 
@@ -45,6 +96,7 @@ TEMPERATURE temp = TEMPERATURE(A5,A4);  // Digital pins SCL, SDA
 
 boolean auto_temp;   // Automatically control Heater
 boolean auto_valve;  // Automatically control Valves
+boolean bluetooth;
 
 /* EEPROM SAVE AND RESTORE OF ID AND CALIBRATION CONSTANTS */
 
@@ -267,6 +319,12 @@ byte d;
 
 void respondToRequest(void)
 {
+	if (bluetooth) btRespondToRequest();
+	else           wfRespondToRequest();
+}
+
+void btRespondToRequest(void)
+{
 	String is = "";
 	while (Serial.available() > 0)  // Read a line of input
 	{
@@ -332,6 +390,7 @@ boolean once;
 
 void setup()
 {
+	bluetooth = true;
 	auto_temp = true;  // Maintain Temperature Control
 	auto_valve = true;  // Maintain Flow (check turbidity)
 	valves.setValve(NUTRIENT,3000); // Initially 3 seconds out of 20

@@ -4,6 +4,7 @@
 
 #include "Arduino.h"
 #include "param.h"
+#define INTERNAL INTERNAL2V56
 
 // Conversions between Analog In(A), Celcius (C), Farenheit (F)
 
