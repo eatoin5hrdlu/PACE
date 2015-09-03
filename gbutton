@@ -48,7 +48,6 @@ repeat1(N) :- M is N-1, repeat1(M).
 :- (current_prolog_flag(arch,'i386-win32')->BT=foreign(plblue);BT=plblue),
    load_foreign_library(BT), writeln('plblue (BLUETOOTH) loaded').
 
-
 :- pce_begin_class(snapshot, label).
 
 variable(imageDirectory, name, get, "Current Image Path" ).
@@ -217,6 +216,9 @@ initialise(Self, Label:[name]) :->
 setLevel(Self,Level) :->
        send(Self, slot, level, Level).
 
+setFlux(Self,Level) :->
+       send(Self, slot, fluorescence, Level).
+
 update(Self) :-> 
         get(Self,slot,level,Level),
         get(Self,slot,temperature,Temp),
@@ -226,9 +228,10 @@ update(Self) :->
         get(Self,slot,fluorescence_t,LuxTarget),
         get(Self,slot,fluorescence,Lux),
 	format(atom(Level2), '~4g', [Level]),
+	format(atom(Lux2), '~4g', [Lux]),
         concat_atom(['Level ', Level2, '%\n',
 	             'Temp  ', Target, 'C / ',Temp,' C\n',
-                     'Lux   ', LuxTarget, ' / ', Lux, 'lm' ], Label),
+                     'Lux   ', LuxTarget, ' / ', Lux2, 'lm' ], Label),
 	send(Self, label, Label).
 
 :- pce_end_class.

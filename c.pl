@@ -1,3 +1,4 @@
+
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -237,12 +238,15 @@ freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 get_new_levels :-
     ( retract(levelStream(Previous)) ->
 	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
-	close(Previous),
-        Levels = levels(L4,L3,L2,L1),
-	send(@lagoon1, setLevel, L1),
-	send(@lagoon2, setLevel, L2),
-	send(@lagoon3, setLevel, L3),
-	send(@lagoon4, setLevel, L4)
+        ( Levels = levels(L4,L3,L2,L1) ->
+	   send(@lagoon1, setLevel, L1),
+	   send(@lagoon2, setLevel, L2),
+	   send(@lagoon3, setLevel, L3),
+	   send(@lagoon4, setLevel, L4)
+        ;
+	   newFlux(Levels,Previous)
+        ),
+	close(Previous)
     ; true
     ),
     level_cmd_dir([Cmd|Args],Cwd),
@@ -252,6 +256,14 @@ get_new_levels :-
 
 get_new_levels :- 
     writeln(failed(levelupdate)).
+
+
+newFlux(end_of_file,_) :- !.
+newFlux(FluxTerm, Stream) :-
+	FluxTerm =.. [Lagoon,FluxValue],
+	send(@Lagoon, setFlux, FluxValue),
+	catch(read(Stream, NextTerm),Ex,(writeln(caught(Ex)),fail)),
+	newFlux(NextTerm, Stream).
 
 :- pce_begin_class(evostat, dialog, "PATHE Control Panel").
 

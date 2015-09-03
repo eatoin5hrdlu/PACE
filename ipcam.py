@@ -1,5 +1,5 @@
-#!/usr/bin/python -u
 #!C:/cygwin/Python27/python -u
+#!/usr/bin/python -u
 #!C:/Python27/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
@@ -287,6 +287,7 @@ class ipCamera(object):
     def updateLagoons(self,pause=10) :
         """Blob detection to locate Lagoons. Must be called before updateLevels()."""
         global debug
+        global lagoon
         debug = debug + "updateLagoons\n"
         numblobs = 0
         needed = ipcam.params['numLagoons']
@@ -301,6 +302,7 @@ class ipCamera(object):
                     debug = debug + "GOT " + str(sbbs[i])
                     lagoon['lagoon'+str(i+1)] = sbbs[i]
                     debug = debug + 'lagoon'+str(i+1) + "   " + str(sbbs[i]) + "\n"
+                write_lagoons(lagoon)
             else :
                 print debug + "Needed " + str(needed) + " bbs, but got " + str(numblobs)
                 for bb in sbbs:
@@ -369,7 +371,7 @@ class ipCamera(object):
         global debug
         frame = None
         while(frame == None) :
-            frame = ipcam.grab()
+            frame = ipcam.lagoonImage()
         picked = frame[:,:,color]  # Start with selected color image
         cycle = 0
         while True:
@@ -409,6 +411,11 @@ def write_settings(cFile):
     f.write(str(settings))
     f.close()
 
+def write_lagoons(ldict):
+    f = open('lagoons', 'w')
+    f.write(str(ldict))
+    f.close()
+
 def setupCamera() :
     with suppress_stdout_stderr() :
         cv2.namedWindow("camera", cv2.CV_WINDOW_AUTOSIZE)
@@ -435,38 +442,47 @@ def load(name, file, default_dict) :
 		print file + " not found: Using default coordinates"
 		gdb[name] = default_dict
 
-# getFluor(ipcam, 'flux.config')
-def getFluor(ipcam, file) :
+
+def dark(image) :
+    if ( np.average( tuple(ord(i) for i in image.tostring()) ) < 60 ) :
+        return True
+    return False
+
+# We only call getFluor if it is dark, and then we check
+# to see that it is still dark before writing lux values
+
+def getFluor(ipcam) :
     basefile = './baseline.jpg'
     baseline = None
     result = None
     cntr = 0
+    lagoon = eval(open('lagoons','r').read())
     if (os.path.exists(basefile)) :
         baseline = cv2.split(cv2.imread(basefile))[1]
     elif ( not 'baseline' in sys.argv) :
         print "Run [flux baseline] to create dark heat image file"
     frames = ipcam.params['frames']
-    orig = ipcam.grab()
+    orig = ipcam.lagoonImage()
     fluor = orig[:,:,1]               # FIRST GREEN IMAGE
     while(cntr < frames) :
-        orig = ipcam.grab()
+        orig = ipcam.lagoonImage()
         (bl, gr, rd) = cv2.split(orig)
         fluor = cv2.add(fluor, cv2.subtract(gr,cv2.add(bl/2,rd/2)))
         cv2.imshow("camera",fluor)
-        if cv.WaitKey(10) == 27:
-                exit()
+        if cv.WaitKey(1) == 27:
+            exit()
         cntr = cntr + 1
-
-    if (baseline == None and len(sys.argv)>1 and sys.argv[1] == 'baseline') :
+    if ('baseline' in sys.argv):
         print "Creating baseline file"
         cv2.imwrite(basefile, fluor)
     else :
         fluor = cv2.subtract(fluor,baseline)
-    ffile = open(fluxfile,'w')
-    for l in [ 'lagoon1', 'lagoon2', 'lagoon3', 'lagoon4' ]:
-        (x, y, w, h) = gdb['layout'][l]
-        ffile.write(l + "(" + str(cv2.mean(fluor[y:y+h,x:x+w])[0]) + ").\n")
-    ffile.close()
+    if (dark(ipcam.grab())) :
+        for k in lagoon.keys():
+            bb = lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
+            subi = fluor[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2]]
+            print k + "(" + str(np.average( tuple(ord(i) for i in subi.tostring()))) + ").\n"
+
 
 if __name__ == "__main__" :
     debug = "openCV('" + str(cv2.__version__) + "')."
@@ -474,11 +490,9 @@ if __name__ == "__main__" :
         if (f.startswith('mypic')) :
             os.remove(f)
     ipcam = setupCamera()  # Needs  {<arg1>|<hostname>}.settings
-    if ( 'fluor' in sys.argv) :
-        getFluor(ipcam, 'flux.config')
-        print 'bailing out early'
+    if ( dark(ipcam.grab() ) ) :
+        getFluor(ipcam)
         exit(0)
-
     (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
     cv.SetMouseCallback('camera', on_mouse, 0)
     bbfp = open('bbox.txt','a')
