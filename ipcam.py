@@ -72,10 +72,12 @@ class ipCamera(object):
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
         if isinstance(self.params['mac'],int) :
-            print "MAC indicates that we are using a USB camera"
+#            print "MAC indicates that we are using a USB camera"
             self.usbcam = cv2.VideoCapture(self.params['mac'])
-            self.usbcam.open(0)
-            print "VideoCapture returned " + str(self.usbcam) + " open status =" + str(self.usbcam.isOpened())
+#            self.usbcam.open(0)
+            time.sleep(0.1)
+            x = self.usbcam.read()
+#           print "VideoCapture returned " + str(self.usbcam) + " test read returned =" + str(x)
             self.ip = None
         else :
             self.ip = self.ValidIP(self.params['mac'])
@@ -172,8 +174,8 @@ class ipCamera(object):
         global debug
         if (self.usbcam != None) :
             try :
-                x = self.usbcam.read()
-                time.sleep(0.1)
+#                x = self.usbcam.read()
+#                time.sleep(0.1)
                 (rval, im1) = self.usbcam.read()
 #                print "usb.read() returned " + str(rval)
                 if (rval) :
@@ -450,8 +452,11 @@ def load(name, file, default_dict) :
 
 def dark(image) :
     totallight = np.average( tuple(ord(i) for i in image.tostring()) )
-    if ( totallight < 20 ) :
+    if ( totallight < 10 ) :
         return True
+    if ('baseline' in sys.argv):
+        print "msg('Must be dark to create baseline (camera heat image)')."
+        exit(0)
     return False
 
 # We only call getFluor if it is dark, and then we check
@@ -505,7 +510,11 @@ if __name__ == "__main__" :
     (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
     cv.SetMouseCallback('camera', on_mouse, 0)
     bbfp = open('bbox.txt','a')
-    for f in range(1) :
+    if ('locate' in sys.argv):
+        locate = 60
+    else :
+        locate = 1
+    for f in range(locate) :
         img = ipcam.grab()
         if (img != None) :
             cv2.rectangle(img,(rbox['x1'],rbox['y1']),(rbox['x2'],rbox['y2']),(0,0,255),2)
