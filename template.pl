@@ -13,6 +13,8 @@ config( [
 	 lagoonHeight(60),    % divisor for levelScale
 	 lagoonWidth(20),
 	 levelScale(100),   % 100 gives level as percentage of lagoonHeight
+	 frames(100),       % number of frames for lumosity integration
+	 darkness(60),      % Average pixel threshold to identify darkness
 	 camera(indoor),
 	 rotate(false),
 	 mac('c4:d6:55:34:8d:07'),  % belongs in snapshot
