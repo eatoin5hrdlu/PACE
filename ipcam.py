@@ -1,6 +1,6 @@
+#!C:/Python27/python -u
 #!C:/cygwin/Python27/python -u
 #!/usr/bin/python -u
-#!C:/Python27/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
 from os  import popen
@@ -74,6 +74,8 @@ class ipCamera(object):
         if isinstance(self.params['mac'],int) :
             print "MAC indicates that we are using a USB camera"
             self.usbcam = cv2.VideoCapture(self.params['mac'])
+            self.usbcam.open(0)
+            print "VideoCapture returned " + str(self.usbcam) + " open status =" + str(self.usbcam.isOpened())
             self.ip = None
         else :
             self.ip = self.ValidIP(self.params['mac'])
@@ -170,14 +172,17 @@ class ipCamera(object):
         global debug
         if (self.usbcam != None) :
             try :
+                x = self.usbcam.read()
+                time.sleep(0.1)
                 (rval, im1) = self.usbcam.read()
+#                print "usb.read() returned " + str(rval)
                 if (rval) :
                     return im1
                 else :
                     print "Usb camera read failed"
                     return None
-            except :
-                print " Failed to grab image from USB camera"
+            except e:
+                print " Failed to grab image from USB camera" + str(e)
         else :
             try :
                 img1 = urllib2.urlopen(self.req).read()
@@ -444,7 +449,8 @@ def load(name, file, default_dict) :
 
 
 def dark(image) :
-    if ( np.average( tuple(ord(i) for i in image.tostring()) ) < 60 ) :
+    totallight = np.average( tuple(ord(i) for i in image.tostring()) )
+    if ( totallight < 20 ) :
         return True
     return False
 
@@ -456,11 +462,14 @@ def getFluor(ipcam) :
     baseline = None
     result = None
     cntr = 0
+    if (not os.path.exists('lagoons')) :
+        print "msg('Luminosity mode: program must be run at least once with the lights on to locate lagoons')."
+        exit(0)
     lagoon = eval(open('lagoons','r').read())
     if (os.path.exists(basefile)) :
         baseline = cv2.split(cv2.imread(basefile))[1]
     elif ( not 'baseline' in sys.argv) :
-        print "Run [flux baseline] to create dark heat image file"
+        print "msg('Run: ipcam.py baseline  with no bioluminescence present to create dark(heat) image file')."
     frames = ipcam.params['frames']
     orig = ipcam.lagoonImage()
     fluor = orig[:,:,1]               # FIRST GREEN IMAGE
@@ -477,7 +486,7 @@ def getFluor(ipcam) :
         cv2.imwrite(basefile, fluor)
     else :
         fluor = cv2.subtract(fluor,baseline)
-    if (dark(ipcam.grab())) :
+    if (dark(ipcam.lagoonImage())) :
         for k in lagoon.keys():
             bb = lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
             subi = fluor[bb[1]:bb[1]+bb[3], bb[0]:bb[0]+bb[2]]
@@ -490,7 +499,7 @@ if __name__ == "__main__" :
         if (f.startswith('mypic')) :
             os.remove(f)
     ipcam = setupCamera()  # Needs  {<arg1>|<hostname>}.settings
-    if ( dark(ipcam.grab() ) ) :
+    if ( dark(ipcam.lagoonImage() ) ) :
         getFluor(ipcam)
         exit(0)
     (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
