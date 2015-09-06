@@ -280,6 +280,9 @@ void mixer(byte v)
 boolean cellstat_command(char c1, char c2, int value)
 {
 byte d;
+float tf;
+int hight,lowt;
+			int low =  ((int)tf) % 10;
 	switch(c2)
 	{
 		case '1': d = 1; break;
@@ -357,7 +360,10 @@ byte d;
 			saveRestore(SAVE);
 			break;
 		case 't':
-		        sprintf(reply,"%d",(int)(temp.celcius()*10));
+		        tf = temp.celcius() * 10.0;
+			hight = (int) tf/10.0;
+			lowt =  ((int)tf) % 10;
+		        sprintf(reply,"%d.%d",hight,lowt);
 			soutln(reply);
 			break;
 		case 'v':
