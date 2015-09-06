@@ -1,4 +1,3 @@
-
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -8,6 +7,11 @@
 :- use_module(library(ctypes)).
 :- pce_autoload(finder, library(find_file)).
 :- pce_global(@finder, new(finder)).
+
+level_cmd_dir(['C:\\Python27\\python.exe','ipcam.py'],
+	       'C:\\cygwin\\home\\peter\\srclab\\PACE') :-
+    gethostname(elapse),
+    current_prolog_flag(windows,true), !.
 
 level_cmd_dir(['C:\\cygwin\\Python27\\python.exe','ipcam.py'],
 	       'C:\\cygwin\\home\\peterr\\src\\PACE') :-
@@ -149,12 +153,11 @@ pl2py(Term) --> { Term =.. [F|Args],  % NESTED DICTIONARY  f(g(a),...)
 
 pathe_report(verbose) :-
     append(logfile),
-    writeln(yada_yada_yada),
-    writeln(verbosityyada_yada_yada).
+    writeln(verbose_test_report1).
 
 pathe_report(moderate) :-
     append(logfile),
-    writeln(yada_moderate_yada).
+    writeln(moderate_test_report).
 
 resize(Thing) :-
     screen(_,_,Height,_),
@@ -521,6 +524,7 @@ save_evostat :-
         ;  Options = [emulator('/usr/bin/xpce'),
                        stand_alone(true), goal(main)]
         ),
+	retract(debug),
         qsave_program(evostat, Options).
 
 
