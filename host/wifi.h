@@ -36,7 +36,7 @@ class WIFI
     okstate=0;
   }
 
-  bool mysend(char *data)
+  bool mysend(const char *data)
     {
       bool sent;
       int tries = 10;

@@ -29,12 +29,12 @@ class VALVES
     int i;
     for(i=0;i<num;i++) valve_pin[i] = -1;
 
-    cycletime = CYCLETIME*1000;  // Cycle time given in seconds
+    cycletime = DEFAULT_CYCLETIME*1000;  // Cycle time is given in seconds
   }
 
   int getSize(void)           { return size;  }
   int getCycletime(void)      { return cycletime/1000;  }
-  void setCycletime(int secs) { cycletime = CYCLETIME*1000; }
+  void setCycletime(int secs) { cycletime = secs*1000; }
 
   int setValve(int pin, int time) {
     int i;
@@ -52,10 +52,16 @@ class VALVES
     }
   }
 
-   void report() {
-      for(int i=0; i<size; i++)
-	if (valve_pin[i] != -1)
-	  Serial.println(valve_time[i]);
+   void report(char *reply) {
+     char *cp = reply;
+     sprintf(cp,"valvetimes([");
+     cp += 12;
+     for(int i=0; i<size; i++)
+       if (valve_pin[i] != -1) {
+	 sprintf(cp, "%4d,",valve_time[i]);
+	 cp += 5;
+       }
+     sprintf(cp-1,"]).");
    }
 
 boolean checkValves(void) {

@@ -4,7 +4,10 @@
 
 #include "Arduino.h"
 #include "param.h"
+
+#ifndef INTERNAL // Mega has two references, but no default
 #define INTERNAL INTERNAL2V56
+#endif
 
 // Conversions between Analog In(A), Celcius (C), Farenheit (F)
 

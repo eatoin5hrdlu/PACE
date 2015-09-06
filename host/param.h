@@ -6,14 +6,14 @@
 #define ANALOG_TEMPERATURE   0 // Analog input for temperature
 #define ANALOG_TURBIDITY     3 // Analog input for turbidity
 
-#define LED             8     // Meniscus light
-#define LASER           7     // Meniscus light
-
-#define MIXER           6     // PWM for 12V motor
-#define HEATER          5     // On off for 48V Stovetop
-
+#define HEATER          9     // Control solid-state relay (~40VAC)
+#define LED             13     // Turbidity light
+#define LASER           8     // Meniscus light
+#define JARLIGHT        7     // Meniscus light
 #define NUTRIENT        4     // Only one valve for Cellstat
-#define CYCLETIME       20
+#define MIXER           3     // PWM for 12V motor
+
+#define DEFAULT_CYCLETIME       20  // Seconds
 
 //#define INDUCER1      4
 //#define HOSTCELLS     3

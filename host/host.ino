@@ -1,8 +1,9 @@
+#include "param.h"        // Includes param.h (change constants there)
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
 Adafruit_MLX90614 mlx;
 // #define DEBUG 1
-#define EOT "end_of_data"
+#define EOT "end_of_file."
 /*
  * Host controller
  *
@@ -35,11 +36,27 @@ Adafruit_MLX90614 mlx;
  *      Open it on schedule with other valves closed
  *  r  : Run mode (calibration off)
  */
-int LED = 13;  // Needed for 'Serial not defined' bug
+
+boolean auto_temp;   // Automatically control Heater
+boolean auto_valve;  // Automatically control Valves
+boolean bluetooth;
+ 
+char reply[40];
 
 #include "secrets.h"
 #include "wifi.h"
 WIFI w = WIFI();
+
+void sout(const char *str) {
+     if (bluetooth) Serial.print(str);
+     else           w.mysend(str);
+}
+
+void soutln(const char *str) {
+     if (bluetooth) Serial.println(str);
+     else           w.mysend(str);
+}
+
 
 // All Pathe Arduino control programs contain at least:
 //
@@ -72,8 +89,6 @@ void wfRespondToRequest(void)
 
 bool wfProcess_command(char c1, char c2, int value)
 {
-  char reply[40];
-
   if (c1 == 'x' && c2 == 'x' && value == -1)
   {
     w.mysend("closed(x,x,-1).");
@@ -94,19 +109,18 @@ VALVES valves = VALVES(1);
 // TEMPERATURE temp = TEMPERATURE(0);  // Analog pin number
 TEMPERATURE temp = TEMPERATURE(A5,A4);  // Digital pins SCL, SDA
 
-boolean auto_temp;   // Automatically control Heater
-boolean auto_valve;  // Automatically control Valves
-boolean bluetooth;
-
 /* EEPROM SAVE AND RESTORE OF ID AND CALIBRATION CONSTANTS */
 
-#ifdef STANDALONE
 #include "EEPROM.h"
 int RomAddress  = 0;
 
 byte id = 'z'; // Zeno = unassigned, by default
+int gcycletime;
 float target_temperature;
 float target_turbidity;
+int gtscale;
+float gtoffset; // Offset and scale for Turbidity calculation
+
 int interval;   // Variable to keep track of the time
 
 int reading[10];
@@ -118,16 +132,18 @@ void checkTemperature()
 float t = temp.celcius();
 	if (t < target_temperature) {
 #ifdef DEBUG
-		Serial.println(t);
-		Serial.println("Temperature is low");
+                sprintf(reply, "temperature(low,%f).",t);
+		sout(reply);
 #endif
 	        digitalWrite(HEATER,1);
+	        digitalWrite(LED,1);
 	}
 	if (t > target_temperature + 0.25) {
 		digitalWrite(HEATER,0);
+		digitalWrite(LED,0);
 #ifdef DEBUG
-		Serial.println(t);
-		Serial.println("Temperature is high");
+                sprintf(reply, "temperature(high,%f).",t);
+		sout(reply);
 #endif
 	}
 }
@@ -147,37 +163,38 @@ void moveData(int op, int size, byte *loc)
 void saveRestore(int op)
 {
 #ifdef DEBUG
-	if (op == SAVE) Serial.println("save");
-	else            Serial.println("restore");
+	if (op == SAVE) sout("save.");
+	else            sout("restore.");
 #endif
 	RomAddress = 0;
 	moveData(op, 1, &id);
 	moveData(op, sizeof(float), (byte *) &target_temperature);
 	moveData(op, MAX_VALVES*sizeof(int), (byte *) valves.getTimes());
 	moveData(op, sizeof(float), (byte *) &target_turbidity);
+	moveData(op, sizeof(int), (byte *) &gtscale);
+	moveData(op, sizeof(float), (byte *) &gtoffset);
+	moveData(op, sizeof(int), (byte *) &gcycletime);
 }
-#endif
 
 void printHelp(void)
 {
-	Serial.print("\n\n");
-	Serial.println("a : set auto {temp, flow, valve} mode");
-	Serial.println("at: set auto heater mode");
-	Serial.println("af: set auto pump mode");
-	Serial.println("av: set auto valve mode");
-	Serial.println("iX : Set ID to X");
-	Serial.println("m : set manual {temp, flow, valve} mode");
-	Serial.println("mt: set manual heater mode");
-	Serial.println("mf: set manual pump mode");
-	Serial.println("mv: set manual valve mode");
-
-	Serial.println("p+N: turn pump N on");
-	Serial.println("p-N: turn pump N off");
-
-	Serial.println("iN: Increase time for valve N");
-	Serial.println("dN: Decrease time for valve N");
-	Serial.println("cN: Calibrate valve N");
-	Serial.println("r:  Normal Run mode");
+String msg = "commands([a(automode),";
+       msg = msg + "at(auto_temp),";
+       msg = msg + "af(auto_pump),";
+       msg = msg +       "av(auto_valve),";
+       msg = msg +       "i(id),"
+	       +       "m(manual),"
+	       +       "mt(manual_temp),"
+	       +       "mf(manual_pump),"
+	       +       "mv(manual_valve),"
+	       +       "pN1(pump_on),"
+	       +       "pN0(pump_off),"
+	       +       "iN(increase_valve),"
+	       +       "dN(decrease_valve),"
+	       +       "cN(calibrate_valve),"
+	       +       "r(run)]).";
+     	       	       
+      sout(msg.c_str());
 }
 
 int turbread[10];
@@ -197,6 +214,24 @@ double total = 0.0;
 		Serial.println(total);
 	}
 	return total/10.0;
+}
+
+/* Assumes constant offset for turbidity calculation */
+/* number in thousandths. e.g. 400 = (OD600 0.400) */
+
+void forceTurbidity(int currentTurbidity)
+{
+   int i;
+   unsigned int reading = 0;
+   for (i=0; i<5; i++) reading += analogRead(ANALOG_TURBIDITY);
+   reading = reading/5;
+   int calcturb = reading/gtscale + gtoffset;
+   sprintf(reply, "read_turbidity(%d,%d).", reading, calcturb);
+   int newscale = reading/(currentTurbidity - gtoffset);
+//   sprintf(reply, "scdelta(%d,%d).", gtscale, newscale);
+   gtscale = newscale;
+//   saveRestore(SAVE);
+   soutln(reply);
 }
 
 int checkTurbidity() {
@@ -242,7 +277,7 @@ void mixer(byte v)
  	    }
 }
 
-boolean lagoon_command(char c1, char c2, int value)
+boolean cellstat_command(char c1, char c2, int value)
 {
 byte d;
 	switch(c2)
@@ -263,7 +298,8 @@ byte d;
 			}
 			break;
 		case 'b':
-			Serial.println(turbidity());
+		        sprintf(reply,"turbidity(%f).",turbidity());
+			soutln(reply);
 			break;
 		case 'c':
 			valves.closeValve(c2);
@@ -273,23 +309,33 @@ byte d;
 			valves.adjust(c2,-10);
 			break;
 		case 'h':
-			digitalWrite(HEATER, d);
-			valves.report();
+		        switch(c2) {
+			 case 'e': printHelp();break;
+			 default :
+			 	 digitalWrite(HEATER, d);
+				 digitalWrite(LED, d);
+				 valves.report(reply);
+				 soutln(reply);
+			}
 			break;
 		case 'i':
 			if (c2 != 0)
 				id = c2;
 			else {
-				Serial.println(id);
+			     sprintf(reply,"%c.",id);
+			     soutln(reply);
 			}
 			break;
 		case 'l':
 			digitalWrite(LED, d);
 			break;
 		case 'm':
-			Serial.print("mixer ");
-			Serial.println(d);
+		        sprintf(reply,"mixer(%d).",d);
+			soutln(reply);
 			mixer(d);
+			break;
+		case 'n':
+			forceTurbidity(value);
 			break;
 		case 'o':
 			valves.openValve(c2);
@@ -302,10 +348,17 @@ byte d;
 			saveRestore(RESTORE);
 			break;
 		case 's':
+		        switch(c2) {
+			  case 'c':
+			     gcycletime = value;
+			     valves.setCycletime(value);
+			     break;
+			}
 			saveRestore(SAVE);
 			break;
 		case 't':
-			Serial.println(temp.celcius());
+		        sprintf(reply,"%d",(int)(temp.celcius()*10));
+			soutln(reply);
 			break;
 		case 'v':
 			valves.adjust(c2,10);
@@ -313,7 +366,7 @@ byte d;
 		default:
 			return false;
 	}
-	Serial.println(EOT);
+	soutln(EOT);
 	return true;
 }
 
@@ -338,7 +391,7 @@ void btRespondToRequest(void)
 		int value = 0;
 		if (is.length() > 2)
 			value = atoi(&is[2]);
-		if (!lagoon_command(is[0], is[1], value)) {
+		if (!cellstat_command(is[0], is[1], value)) {
 			Serial.println("bad flow command [" + is + "]");
 			Serial.println(EOT);
 		}
@@ -396,8 +449,9 @@ void setup()
 	valves.setValve(NUTRIENT,3000); // Initially 3 seconds out of 20
 
 	pinMode(NUTRIENT,  OUTPUT);  digitalWrite(NUTRIENT,   0);
-	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 1);
-	pinMode(LED, OUTPUT);  digitalWrite(LED, 1);
+	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 0);
+	pinMode(LED, OUTPUT);  digitalWrite(LED, 0);
+	pinMode(JARLIGHT, OUTPUT);  digitalWrite(JARLIGHT, 0);
 	pinMode(LASER, OUTPUT);  digitalWrite(LASER, 1);
 	// pinMode(MIXER, OUTPUT);
         analogWrite(MIXER, 0);
@@ -411,28 +465,28 @@ void setup()
 	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
 	mlx = Adafruit_MLX90614();
 	mlx.begin();   // Initialize Mexexis Thermometer
+//	if (true)
 	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
 	{
-		id = '1';	// Default Lagoon ID 
+		id = 'd';	// Default Lagoon ID 
 		target_temperature = 36.5;
+		gcycletime = DEFAULT_CYCLETIME;
 		valves.setTime('1',4000);
-		valves.setTime('2',3000);
-		valves.setTime('3',1000);
-		valves.setTime('4',0);
 		target_turbidity = 0.4;
+		gtscale = 9100;
+		gtoffset = 0.0;
 		saveRestore(SAVE);
 	}
 	else
 	{
 		saveRestore(RESTORE);
 #ifdef DEBUG
-		Serial.print("target temperature ");
-	 	Serial.println(target_temperature);
-		Serial.print("target turbidity ");
-	 	Serial.print(target_turbidity);
-		Serial.println(" restored");
+		sprintf(reply,"tmtbscale(%f,%f,%f).",
+			target_temperature,target_turbidity,gtscale);
+		soutln(reply);
 #endif
 	}
+	valves.setCycletime(gcycletime);
 	once = true;
 }
 
@@ -442,7 +496,7 @@ void loop()
 {
 int tb_thresh;
 	respondToRequest();     // Check for command
-	delay(10);
+	delay(1000);
 	if (auto_temp)		// Check and update heater(s)
 		checkTemperature();
 	if (auto_valve)		// Check and update nutrient valve
