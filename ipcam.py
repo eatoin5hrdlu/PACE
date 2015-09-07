@@ -1,6 +1,6 @@
+#!/usr/bin/python -u
 #!C:/Python27/python -u
 #!C:/cygwin/Python27/python -u
-#!/usr/bin/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
 from os  import popen
@@ -189,15 +189,19 @@ class ipCamera(object):
             try :
                 img1 = urllib2.urlopen(self.req).read()
                 if (img1 == None) :
-                    print "urlopen->read failed"
+                    print "camera('",self.ip,"')."
+                    exit(0)
                 img1 = bytearray(img1)
                 if (img1 == None) :
-                    print "bytearray failed"
+                    print "bytearray(fail)."
+                    exit(0)
                 img1 = np.asarray(img1, dtype=np.uint8)
                 if (img1 == None) :
-                    print "numpy conversion failed"
+                    print "numpy_conversion(fail)."
+                    exit(0)
             except urllib2.URLError, msg :
-                print msg, " Failed to get image from camera at ", self.ip
+                print "camera('", msg, "-", self.ip,"')."
+                exit(0)
 
             if (img1 == None) :
                 debug = debug + "No image returned in IPcamera.grab()"
@@ -230,7 +234,7 @@ class ipCamera(object):
         try:
             urllib2.urlopen(urllib2.Request(cmd))
         except urllib2.URLError, msg :
-            print msg, " Failed sending command to camera at ", self.ip
+            print "camera('", msg, "-", self.ip,"')."
 
     def showThisColor(color) :
         frame = ipcam.grab()

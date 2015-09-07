@@ -238,9 +238,14 @@ freeall :-
 freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
+check_error(camera(IP))       :- writeln(error(camera(IP))),!.
+check_error(othererror(D)) :- writeln(error(othererror(D))),!.
+check_error(_).   % Everything else is not an error
+
 get_new_levels :-
     ( retract(levelStream(Previous)) ->
 	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
+        check_error(Levels),
         ( Levels = levels(L4,L3,L2,L1) ->
 	   send(@lagoon1, setLevel, L1),
 	   send(@lagoon2, setLevel, L2),
