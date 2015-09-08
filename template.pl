@@ -27,7 +27,7 @@ config( [
 	 picCmd('/snapshot.cgi?resolution=32&user=admin&pwd=lakewould'),
 	 screen(680, 840, point(750,0)),
 	 layout([
-		 cellstat(cellstat,below,[od(0.4),temp(37.0), shape(240,60),CF]),
+		 cellstat(cellstat,below,[od(0.4),temp(37.0),mac('98:D3:31:40:1D:B0'),shape(240,60),CF]),
 		 % pumps( pumprail, next_row,   [  mac('98:D3:31:70:2B:70')]),
 		 pumps( pumprail, next_row,   [  ]),
 		 spacer(        x1, next_row, [color(blue)]),

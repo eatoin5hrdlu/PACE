@@ -3,7 +3,7 @@
 #include <Adafruit_MLX90614.h>
 Adafruit_MLX90614 mlx;
 // #define DEBUG 1
-#define EOT "end_of_file."
+#define EOT "end_of_data"
 /*
  * Host controller
  *
@@ -340,9 +340,11 @@ int hight,lowt;
 		case 'n':
 			forceTurbidity(value);
 			break;
-		case 'o':
-			valves.openValve(c2);
-			break;
+		case 'o':     // Only one valve in cellstat
+		     if (c2 == '2')      digitalWrite(AIR,1);
+		     else if (c2 == '-') { soutln("what"); digitalWrite(AIR,0); }
+		     else    		 valves.openValve('1');
+		     break;
 		case 'p':
 			auto_valve = false;
 			valves.openValve(c2);
@@ -456,6 +458,7 @@ void setup()
 
 	pinMode(NUTRIENT,  OUTPUT);  digitalWrite(NUTRIENT,   0);
 	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 0);
+	pinMode(AIR, OUTPUT); digitalWrite(AIR, 0);
 	pinMode(LED, OUTPUT);  digitalWrite(LED, 0);
 	pinMode(JARLIGHT, OUTPUT);  digitalWrite(JARLIGHT, 0);
 	pinMode(LASER, OUTPUT);  digitalWrite(LASER, 1);

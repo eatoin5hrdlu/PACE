@@ -6,6 +6,7 @@
 #define ANALOG_TEMPERATURE   0 // Analog input for temperature
 #define ANALOG_TURBIDITY     3 // Analog input for turbidity
 
+#define AIR            10     // Control solid-state relay (~120VAC)
 #define HEATER          9     // Control solid-state relay (~40VAC)
 #define LED             13     // Turbidity light
 #define LASER           8     // Meniscus light

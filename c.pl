@@ -1,3 +1,4 @@
+
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -23,7 +24,7 @@ level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
 :- [gbutton].
 
 :- dynamic target_value/2, current_value/4, current_value/2, screen/4.
-:- dynamic component/2, levelStream/1.
+:- dynamic component/2, levelStream/1, air/0.
 
 %
 % System Configuration
@@ -242,6 +243,7 @@ check_error(camera(IP))       :- writeln(error(camera(IP))),!.
 check_error(othererror(D)) :- writeln(error(othererror(D))),!.
 check_error(_).   % Everything else is not an error
 
+get_new_levels :- !.
 get_new_levels :-
     ( retract(levelStream(Previous)) ->
 	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
@@ -310,7 +312,13 @@ initialise(W, Label:[name]) :->
 	 send(@ut, start),
          send_super(W, open, Location).
 
-c5(_W) :-> "User pressed the CellStat button":: writeln(cellstat).
+cellstat(_W) :-> "User pressed the CellStat button"::
+        ( air ->
+	     retract(air), Cmd = 'o-'
+	 ;   assert(air), Cmd = 'o2'
+	),
+        component(cellstat,CellStat),
+        send(CellStat,command,Cmd).
 
 l1(_W) :-> "User pressed the L1 button"::
   current_prolog_flag(argv,[_,X|_]),
@@ -469,7 +477,10 @@ c(Name) :-
     new(@gui, evostat(Name)),
     send(@gui?frame, icon, bitmap('./open/images/evo.xpm')),
     get(@gui, prompt, Reply),
-    (Reply = quit -> send(@gui, destroy); true ).
+    (Reply = quit ->
+         send(@gui, destroy)
+     ;   true
+    ).
 
 % Making a Prolog executable (saved-state)
 % :- [c],save_evostat.
@@ -487,6 +498,7 @@ main :-      pce_main_loop(main).
 main(Argv) :-
         set_prolog_flag(save_history,false),
 	at_halt(pathe_report(verbose)),
+        load_foreign_library(plblue),
 	(debug -> true
         ;
 	tell(logfile),
@@ -508,9 +520,9 @@ main(Argv) :-
 	member(layout(Components),List),
 	Layout =.. [Root,Components],
 	assert(Layout),
-	writeln(Layout),
+%	writeln(Layout),
 
-	assert(supress(layout(_))),           % Leave this out of the dictionary
+	assert(supress(layout(_))),           % Leave this out of the Python "settings" dictionary
 	assert(supress(screen(_,_,_))),       %     '' 
 	pl2PythonDict(List, PyString),        % Convert to Python Dictionary
 	concat_atom([Root,'.settings'],File), % Write it out
@@ -520,17 +532,14 @@ main(Argv) :-
 	c(Root).
 
 save_evostat :-
+        retract(debug),
         pce_autoload_all,
         pce_autoload_all,
+        Options = [stand_alone(true), goal(main)],
         ( current_prolog_flag(windows,true)
-         -> Options = [emulator(swi('bin/xpce-stub.exe')),
-                       stand_alone(true),
-                       goal(main) ]
-        ;  Options = [emulator('/usr/bin/xpce'),
-                       stand_alone(true), goal(main)]
-        ),
-	retract(debug),
-        qsave_program(evostat, Options).
+         -> qsave_program(evostat, [emulator(swi('bin/xpce-stub.exe'))|Options])
+        ;   qsave_program(evostat, [emulator('/usr/bin/xpce')|Options])
+        ).
 
 
 
