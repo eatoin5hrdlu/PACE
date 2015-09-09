@@ -124,7 +124,7 @@ od(Self, OD600:[real]) :->
 temp(Self, Temp:[real]) :->
 	 send(Self, slot, temperature, Temp).
 
-command(Self, Cmd) :->
+converse(Self, Cmd) :->
 	"Send command to Bluetooth Socket and save Reply"::
         get(Self, socket, Socket),
 	( bt_converse(Socket, Cmd, Reply)
@@ -185,12 +185,11 @@ bt(Self, MacAddr) :->
 :- pce_begin_class(cellstat, ebutton).
 
 update(Self) :->
-	trace,
-	command(Self,'t'),
-        get(Self, slot, reply, AtomTemp),
-        atom_codes(AtomTemp,AtomCodes),
-	number_codes(Temp,AtomCodes),
-	send(Self,slot,temperature,Temp),
+	send_super(Self,converse,'t'),
+        get(Self,slot,reply,Reply),
+        atom_to_term(Reply,TTerm,_Bindings),
+	TTerm = temperature(Temp),
+        send(Self,slot,temperature,Temp),
         get(Self,slot,temperature_t,Target),
 	range_color(Target, Temp, Tc),
         get(Self,slot,od600_t,ODTarget),
@@ -318,11 +317,12 @@ prompt(W, Value:name) :<-
         get(W,confirm,Value).
 
 % Bluetooth Connectivity
-command(Self, Cmd) :->
+converse(Self, Cmd) :->
 	"Send command to Bluetooth Socket and save Reply"::
         get(Self, socket, Socket),
 	( bt_converse(Socket, Cmd, Reply)
-	  -> send(Self, slot, reply, Reply)
+	  -> read_term_from_atom(Reply,RTerm,[]),
+	     send(Self, slot, reply, RTerm)
 	  ; send(Self, slot, reply, failed)
 	).
 

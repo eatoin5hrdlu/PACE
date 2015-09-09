@@ -137,7 +137,8 @@ class EvoCv(object):
            TODO: Automate variation of these parameters to get a good reading"""
 	emp = self.emphasis(img)
         self.showUser(emp,pause)
-        con = self.contrast(emp,iter=1)
+#        con = self.contrast(emp,iter=1)
+        con = self.contrast(emp,iter=1,scale=1.4, offset=-50)
         self.showUser(con,pause)
 	gray = self.erodeDilate(con, 1, 1, 1)
 	gray2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)

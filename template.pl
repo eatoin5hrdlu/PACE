@@ -5,24 +5,24 @@
 %   [ mac('98:D3:31:70:2B:70'), temp(37.9), od(0.4), shape(60,30)]),
 %   [ mac('98:D3:31:40:1D:A4') ])
 %]).
-
+% New numbers from splatspace outdoor camera for reference (this template is wrong because it combines outdoor levels with indoor commands
 config( [
 	 numLagoons(4),
          imageSize(600,500),
-	 lagoonRegion(290,240,380,550),  % Area containing lagoons
-	 lagoonHeight(60),    % divisor for levelScale
-	 lagoonWidth(20),
+         lagoonRegion(640,7,892,700),
+	 lagoonHeight(280),    % divisor for levelScale
+	 lagoonWidth(100),
 	 levelScale(100),   % 100 gives level as percentage of lagoonHeight
 	 frames(100),       % number of frames for lumosity integration
 	 darkness(60),      % Average pixel threshold to identify darkness
-	 camera(indoor),
+	 camera(outdoor),
 	 rotate(false),
 	 mac('c4:d6:55:34:8d:07'),  % belongs in snapshot
 	 defaultIP('172.16.3.136'),  % belongs in snapshot
 	 userpwd('&user=scrapsec&pwd=lakewould'),
-	 brightness(100), % 0-240 for indoor camera
+	 brightness(11), % 0-240 for indoor camera
 	 brightnessCmd('/camera_control.cgi?param=1&value='),
-	 contrast(4),
+	 contrast(40),
 	 contrastCmd('/camera_control.cgi?param=2&value='),
 	 picCmd('/snapshot.cgi?resolution=32&user=admin&pwd=lakewould'),
 	 screen(680, 840, point(750,0)),

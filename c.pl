@@ -239,11 +239,10 @@ freeall :-
 freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
-check_error(camera(IP))       :- writeln(error(camera(IP))),!.
-check_error(othererror(D)) :- writeln(error(othererror(D))),!.
+check_error(camera(IP))       :- writeln(error(camera(IP))),!,fail.
+check_error(othererror(D)) :- writeln(error(othererror(D))),!,fail.
 check_error(_).   % Everything else is not an error
 
-get_new_levels :- !.
 get_new_levels :-
     ( retract(levelStream(Previous)) ->
 	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
@@ -318,7 +317,7 @@ cellstat(_W) :-> "User pressed the CellStat button"::
 	 ;   assert(air), Cmd = 'o2'
 	),
         component(cellstat,CellStat),
-        send(CellStat,command,Cmd).
+        send(CellStat,converse,Cmd).
 
 l1(_W) :-> "User pressed the L1 button"::
   current_prolog_flag(argv,[_,X|_]),
@@ -472,6 +471,8 @@ hostname_root(H) :-
      atom_chars(Name,Cs),
      ( append(RCs,['.'|_],Cs) -> atom_chars(H,RCs) ; H = Name ).
 
+c :- main([]).
+
 c(Name) :-
     free(@gui),
     new(@gui, evostat(Name)),
@@ -540,11 +541,5 @@ save_evostat :-
          -> qsave_program(evostat, [emulator(swi('bin/xpce-stub.exe'))|Options])
         ;   qsave_program(evostat, [emulator('/usr/bin/xpce')|Options])
         ).
-
-
-
-
-
-
 
 

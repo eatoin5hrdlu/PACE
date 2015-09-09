@@ -277,7 +277,8 @@ class ipCamera(object):
                 if (lvl == None or lvl == 1000) :
                     debug = debug + "level detection failed\n"
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
-                    Levels[k] = (100.0 * (self.params['lagoonHeight']-lvl))/self.params['lagoonHeight']
+#                    Levels[k] = 100  - ((100.0 * (lvl-bb[1]))/self.params['lagoonHeight'])
+                    Levels[k] = (100.0 * (lvl-bb[1]))/self.params['lagoonHeight']
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
                     goodRead = goodRead + 1
                     self.drawLagoons(frame)
