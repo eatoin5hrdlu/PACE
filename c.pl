@@ -323,9 +323,18 @@ l1(_W) :-> "User pressed the L1 button"::
   current_prolog_flag(argv,[_,X|_]),
   send(@l1, label, X).
 
-l2(_W) :-> "User pressed the L1 button":: writeln(lagoon).
-l3(_W) :-> "User pressed the L1 button":: writeln(lagoon).
-l4(W)  :-> "User pressed the L1 button":: writeln(lagoon),send(W,return(ok)).
+lagoon1(_W) :->
+       "User selected Lagoon 1"::
+       component(lagoon1,L), writeln(calibrate(lagoon1)), send(L,calibrate).
+lagoon2(_W) :->
+       "User selected Lagoon 2"::
+       component(lagoon2,L), writeln(calibrate(lagoon2)), send(L,calibrate).
+lagoon3(_W) :->
+       "User selected Lagoon 3"::
+       component(lagoon3,L), writeln(calibrate(lagoon3)), send(L,calibrate).
+lagoon4(_W) :->
+       "User selected Lagoon 4"::
+       component(lagoon4,L), writeln(calibrate(lagoon4)), send(L,calibrate).
 
 tb(W)   :-> newvalue(tb,W).
 tc(W)   :-> newvalue(tc,W).

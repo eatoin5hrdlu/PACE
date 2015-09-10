@@ -209,10 +209,19 @@ variable(fluorescence,real, get, "Fluorescence").
 variable(fluorescence_t, real, get, "Target Fluorescence").
 variable(level,real, get, "Level").
 variable(level_t, real, get, "Target Level").
+variable(calibrate_level, real, get, "Calibration Level").
+
+variable(calibration, name, get, "Calibration State Machine").
+variable(target_rate, real, get, "Target Flow Rate").
+variable(start_time, real, get, "Time since last Calibration state change").
+variable(rate_input, real, get, "Calculated Input Flow Rate").
+variable(rate_output, real, get, "Calculated Output Flow Rate").
+variable(calibration, name, get, "Calibration State Machine").
 
 initialise(Self, Label:[name]) :->
 	"Initialise the lagoon"::
         send_super(Self, initialise(Label)),
+	send(Self, slot, calibration, normal),
 	send(Self, slot, level, 0.0),
 	send(Self, slot, level_t, 0.3),
 	send(Self, slot, fluorescence_t, 0.2),
@@ -224,7 +233,7 @@ setLevel(Self,Level) :->
 setFlux(Self,Level) :->
        send(Self, slot, fluorescence, Level).
 
-update(Self) :-> 
+update(Self) :->
         get(Self,slot,level,Level),
         get(Self,slot,temperature,Temp),
         get(Self,slot,temperature_t,Target),
@@ -237,7 +246,83 @@ update(Self) :->
         concat_atom(['Level ', Level2, '%\n',
 	             'Temp  ', Target, 'C / ',Temp,' C\n',
                      'Lux   ', LuxTarget, ' / ', Lux2, 'lm' ], Label),
-	send(Self, label, Label).
+	send(Self, label, Label),
+	get(Self,slot,calibration,State),  % The Calibration State is the Message
+	send(Self,State).
+
+% Calibration begins after someone sends the 'calibrate' message
+% Lagoons can distiguish between input valves and output valves.
+% command: do (disable output valves)
+%          eo (enable outputs)
+%          di (disable input valves)
+%          ei (enable input valves)
+
+calibrate(Self) :->
+    get(Self,slot,calibration,C),
+    writeln(calibration(Self,C)),
+    C = normal,
+    send(Self,slot,calibration,inflow),
+    get_time(Time),
+    send(Self,slot,start_time,Time),
+    get(Self,slot,level,Level),
+    CLevel is 1.1 * Level,
+    send(Self,slot,calibrate_level,CLevel).
+%    send(Self,command, do).  % Disable Output Flow(s)
+
+normal(_Self) :-> true.
+
+inflow(Self) :->
+    get_time(Now),
+    get(Self,slot,start_time,STime),
+    Now >= STime + 20,
+    !,
+    writeln(calibrationInflowTimedOut(Self)),
+    send(Self,slot,calibration,outflow),
+    get(Self,slot,level,Level),
+    get(Self,slot,calibrate_level,CLevel),
+    Level >= CLevel,
+    get_time(Time),
+    get(Self,slot,start_time,StartTime),
+    RateInput is ( Level/(10*(Time-StartTime))),
+    send(Self,slot,rate_input,RateInput),
+    CLevel is Level - (Level/11.0),
+    get(Self,slot,calibrate_level,Level),
+    get(Self,slot,start_time,Time), % Restart timer
+%    send(Self,command, eo), % Enable Output Flow(s)
+%    send(Self,command, di), % Disable Input Flow(s)
+    send(Self,slot,calibration,outflow),
+    !.
+	       
+% Calculate Output Flow Rate with time to decrease volume by 10% (1/11)
+
+outflow(Self) :->
+    get_time(Now),
+    get(Self,slot,start_time,STime),
+    Now >= STime + 20,
+    !,
+    writeln(calibrationOutflowTimedOut(Self)),
+    send(Self,slot,calibration,normal),
+    get(Self,slot,level,Level),
+    get(Self,slot,calibrate_level,CLevel),
+    Level =< CLevel,
+    get_time(Time),
+    get(Self,slot,start_time,StartTime),
+    RateOutput is ( CLevel/(10*(Time-StartTime))),
+    send(Self,slot,rate_output,RateOutput),
+    send(Self,slot,calibration,normal),
+%    send(Self, command, ei), % Re-enable Normal Input Flow(s)
+    !.
+
+% Adjust valve times with the calculated Flow Rates
+done(Self) :->
+    get(self,slot,target_rate, TargetFlow),
+    get(self,slot,rate_input, RateInput),
+    DeltaInput is TargetFlow - RateInput,
+%    send(Self,command,[ai,DeltaInput]),
+    get(self,slot,rate_output, RateOutput),
+    DeltaOutput is TargetFlow - RateOutput,
+%    send(Self,command,[ao,DeltaOutput]),
+    send(Self,slot,calibration,normal).
 
 :- pce_end_class.
 
