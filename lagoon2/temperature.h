@@ -6,6 +6,9 @@
 #include "param.h"
 //#include "MLX.h"
 
+#ifndef INTERNAL  // Mega2650 has two references 1.1 and 2.56 (no default 'INTERNAL')
+#define INTERNAL INTERNAL2V56
+#endif
 // Conversions between Analog In(A), Celcius (C), Farenheit (F)
 
 #define FULL_SCALE 1024  // Analog In 0-1023

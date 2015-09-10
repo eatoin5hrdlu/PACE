@@ -143,7 +143,16 @@ byte d;
 			auto_valve = true;
 			break;
 		case 'd':
-			valves.adjust(c2,-500);
+			switch(c2) {
+				case 'i': valves.disable_inflow(); break;
+				case 'o': valves.disable_outflow(); break;
+			}
+			break;
+		case 'e':
+			switch(c2) {
+				case 'i': valves.enable_inflow(); break;
+				case 'o': valves.enable_outflow(); break;
+			}
 			break;
 		case 'h':
 			digitalWrite(HEATER, d);

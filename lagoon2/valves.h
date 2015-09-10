@@ -18,6 +18,11 @@
 
 #include "Arduino.h"
 #include "param.h"
+#define INFLOW  1
+#define OUTFLOW 2
+#define ALLFLOW (INFLOW|OUTFLOW)
+#define NOFLOW  0
+#define ENABLED(v) (valve_dir[v]&flow)
 
 class VALVES
 {
@@ -25,24 +30,26 @@ class VALVES
 
   VALVES() {
     size = NUM_VALVES;
-    valve_time[0] = 35000;  // OUTFLOW DEFAULT
-    valve_pin[0] =  5;
-    valve_open[0] = 0;
-
-    valve_time[1] = 40000;  // HOSTCELL DEFAULT
-    valve_pin[1] =  4;
-    valve_open[1] = 0;
-
-    valve_time[2] = 5000;  // INDUCER 1 ( Arabinose )
-    valve_pin[2] =  3;
-    valve_open[2] = 0;
-
-    valve_time[3] = 0;     // INDUCER 2 ( cAMP )
-    valve_pin[3] =  2;
-    valve_open[3] = 0;
-
+    //   setup_valve(Valve#,Pin#,Time,Direction)
+    setup_valve(0, 5, 40000, OUTFLOW);  // Valve#, Pin#, TimeMs, Direction
+    setup_valve(1, 4, 35000, INFLOW);   // HOST CELLS
+    setup_valve(2, 3,  5000, INFLOW);   // INDUCER 1 ( Ara )
+    setup_valve(3, 2,     0, INFLOW);   // INDUCER 2 ( cAMP )
+    flow = ALLFLOW;
     cycletime = 60000;    // One minute cycle time
   }
+
+  void setup_valve(int v, byte pn, int tm, byte dir) {
+    valve_time[v] = tm;
+    valve_pin[v] =  pn;
+    valve_dir[v] = dir;
+    valve_open[v] = 0;
+  }
+
+  void enable_outflow(void)  { flow |= OUTFLOW;  }
+  void disable_outflow(void) { flow &= ~OUTFLOW; }
+  void enable_inflow(void)   { flow |= INFLOW;   }
+  void disable_inflow(void)  { flow &= ~INFLOW;  }
 
    void report() {
       for(int i=0; i<NUM_VALVES; i++)
@@ -109,7 +116,9 @@ boolean checkValves(void) {
 
  private:
   int size;                         // Number of valves
+  byte     flow;
   byte     valve_pin[NUM_VALVES];
+  byte     valve_dir[NUM_VALVES];
   int      valve_time[NUM_VALVES];
   long int valve_open[NUM_VALVES];  // When was the valve opened
 

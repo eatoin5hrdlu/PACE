@@ -5,17 +5,16 @@
 
 #define ANALOG_TEMPERATURE   0 // Analog input for temperature
 
-#define INDUCER2        8     // Additional Valve
+#define NUM_VALVES      4
+
+#define OUTFLOW         2
+#define HOSTCELLS       3
+#define INDUCER1        4
+#define INDUCER2        8
 
 #define LED             7     // Meniscus light
-#define MIXER           6     // PWM for 12V motor
 #define HEATER          5
-
-#define INDUCER1        4
-#define HOSTCELLS       3
-#define OUTFLOW         2
-
-#define NUM_VALVES      4
+#define MIXER           6     // PWM for 12V motor
 
 #define MIXERSPEED 180   // PWM value for top mixer speed
 
