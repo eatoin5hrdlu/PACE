@@ -1,7 +1,7 @@
 #ifndef VALVES_v1_h
 #define VALVES_v1_h
 #define LIBRARY_VERSION	1.0.0
-//
+// FROM LAGOON2
 // The number of valves and initial timings are specified in
 // the constructor, rather than having a parameterized object.
 //
@@ -18,40 +18,53 @@
 
 #include "Arduino.h"
 #include "param.h"
-// #define DEBUG 1
+#define INFLOW  1
+#define OUTFLOW 2
+#define ALLFLOW (INFLOW|OUTFLOW)
+#define NOFLOW  0
+#define ENABLED(v) (valve_dir[v]&flow)
 
 class VALVES
 {
  public:
 
-  VALVES(int num) {
-    size = num;
+  VALVES(int n) {
     int i;
-    for(i=0;i<num;i++) valve_pin[i] = -1;
-
-    cycletime = DEFAULT_CYCLETIME*1000;  // Cycle time is given in seconds
+    size = n;
+    flow = ALLFLOW;                     // IN and OUT-Flow enabled
+    for(i=0;i<n;i++) valve_pin[i] = -1; // Mark as undefined
+    cycletime = DEFAULT_CYCLETIME*1000; // Cycle in seconds, store as ms
   }
+
+  void setup_valve(int v, byte pn, int tm, byte dir) {
+    valve_time[v] = tm;
+    valve_pin[v] =  pn;
+    valve_dir[v] = dir;
+    valve_open[v] = 0;
+    digitalWrite(pn,0); // Valve off (closed?) by default
+  }
+
+  void enable_outflow(void)  { flow |= OUTFLOW;  }
+  void disable_outflow(void) { flow &= ~OUTFLOW; }
+  void enable_inflow(void)   { flow |= INFLOW;   }
+  void disable_inflow(void)  { flow &= ~INFLOW;  }
 
   int getSize(void)           { return size;  }
   int getCycletime(void)      { return cycletime/1000;  }
   void setCycletime(int secs) { cycletime = secs*1000; }
 
-  int setValve(int pin, int time) {
+  boolean setValve(int pin, int time) {
     int i;
     for(i=0;i<size;i++) {
-      if (valve_pin[i] == pin) { // Pin already assigned
+      if (valve_pin[i] == pin) {
 	valve_time[i] = time;
-	return i;
+	return true;
       }
-      if (valve_pin[i] == -1) {  // First time
-	valve_pin[i] = pin;
-	valve_time[i] = time;
-	return i;
-      }
-      return -1;
     }
+    return false;
   }
 
+  // report() takes a pointer to a buffer 
    void report(char *reply) {
      char *cp = reply;
      sprintf(cp,"valvetimes([");
@@ -68,18 +81,9 @@ boolean checkValves(void) {
       unsigned long now = millis();
 
       if (now > lasttime + cycletime) { // Time to open valves
-#ifdef DEBUG
-	Serial.println(".");
-#endif
 	for (int i=0; i<size; i++) {
-	  if (valve_open[i] != 0) {
-#ifdef DEBUG
-	    Serial.print("Valve was left open!!");
-#endif
-	    closeValve(i);
-	  }
-	  openValve(i);  // Open valves with positive on-time
-	  delayMicroseconds(100);
+	  openValve(i);                
+	  delayMicroseconds(100);  // Spread out switching current surges
 	}
 	lasttime = millis();
 
@@ -91,39 +95,30 @@ boolean checkValves(void) {
 	      closeValve(i);
 	    }
 	}
+      return true;
   }
 
 // Valve will never open if it's "open time" is zero
 
   void openValve(int v)      {
-    if (valve_time[v] != 0) {
-#ifdef DEBUG
-      Serial.print("valve ");
-      Serial.print(v);
-      Serial.println(" open");
-#endif
+    if (valve_time[v] != 0 && (valve_dir[v]&flow)) {
       digitalWrite(valve_pin[v],1);
-       valve_open[v] = millis();
+      valve_open[v] = millis(); // when this valve was opened
     }
   }
 
   void closeValve(int v)     {
-#ifdef DEBUG
-    Serial.print("valve ");
-    Serial.print(v);
-    Serial.println(" closed");
-#endif
     digitalWrite(valve_pin[v],0);
     valve_open[v] = 0;
   }
-  int *getTimes()            { return &valve_time[0];   }
-  int getTime(int vchar)       { return valve_time[(int)(vchar-'1')]; }
-  int setTime(char vchar, int t)  { valve_time[(int)(vchar-'1')] = t; }
+
+  int *getTimes()               { return &valve_time[0];   }
+  int getTime(int vchar)        { return valve_time[(int)(vchar-'1')]; }
+  int setTime(char vchar, int t){ valve_time[(int)(vchar-'1')] = t; }
+
   void adjust(char vchar, int value) {
     int v = (int)(vchar - '1');
-#ifdef DEBUG
     Serial.print("adjusting valve "); Serial.println(v);
-#endif
     if (value > 0 && valve_time[v] < cycletime + value)
       valve_time[v] += value;
     else if (value < 0 && valve_time[v] >= abs(value))
@@ -132,9 +127,11 @@ boolean checkValves(void) {
 
  private:
   int size;                         // Number of valves
-  byte     valve_pin[MAX_VALVES];
-  int      valve_time[MAX_VALVES];
-  long int valve_open[MAX_VALVES];  // When was the valve opened
+  byte     flow;
+  byte     valve_pin[NUM_VALVES];
+  byte     valve_dir[NUM_VALVES];
+  int      valve_time[NUM_VALVES];
+  long int valve_open[NUM_VALVES];  // When was the valve opened
 
   unsigned long lasttime;  // Beginning of current time interval
   unsigned long cycletime; // Cycle duration (always > valve on time)
@@ -152,9 +149,7 @@ boolean checkValves(void) {
       return(valve_pin[pos]);
     return -1;
   }
-
   };
 #endif
-
 
 

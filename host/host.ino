@@ -105,7 +105,7 @@ bool wfProcess_command(char c1, char c2, int value)
 #include "valves.h"        // Includes param.h (change constants there)
 #include "temperature.h" 
 
-VALVES valves = VALVES(1);
+VALVES valves = VALVES(2);
 // TEMPERATURE temp = TEMPERATURE(0);  // Analog pin number
 TEMPERATURE temp = TEMPERATURE(A5,A4);  // Digital pins SCL, SDA
 
@@ -454,27 +454,27 @@ void setup()
 	bluetooth = true;
 	auto_temp = true;  // Maintain Temperature Control
 	auto_valve = true;  // Maintain Flow (check turbidity)
-	valves.setValve(NUTRIENT,3000); // Initially 3 seconds out of 20
 
-	pinMode(NUTRIENT,  OUTPUT);  digitalWrite(NUTRIENT,   0);
+	pinMode(NUTRIENT,  OUTPUT);
+	digitalWrite(NUTRIENT,   0);
+	valves.setValve(NUTRIENT,5000); // Initially 5 seconds out of 20
+
+	pinMode(HOSTOUT,  OUTPUT);
+	digitalWrite(HOSTOUT,   0);
+	valves.setValve(HOSTOUT,0);
+
 	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 0);
 	pinMode(AIR, OUTPUT); digitalWrite(AIR, 0);
 	pinMode(LED, OUTPUT);  digitalWrite(LED, 0);
 	pinMode(JARLIGHT, OUTPUT);  digitalWrite(JARLIGHT, 0);
 	pinMode(LASER, OUTPUT);  digitalWrite(LASER, 1);
-	// pinMode(MIXER, OUTPUT);
+	// pinMode(MIXER, OUTPUT);  // Don't need pinMode for PWM output
         analogWrite(MIXER, 0);
-
-//	pinMode(OUTFLOW,  OUTPUT);  digitalWrite(OUTFLOW,   0);
-//	pinMode(HOSTCELLS, OUTPUT); digitalWrite(HOSTCELLS, 0);
-//	pinMode(INDUCER1,  OUTPUT); digitalWrite(INDUCER1,  0);
-//	pinMode(INDUCER2,  OUTPUT); digitalWrite(INDUCER2,  0);
 
 	interval = millis();
 	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
 	mlx = Adafruit_MLX90614();
 	mlx.begin();   // Initialize Mexexis Thermometer
-//	if (true)
 	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
 	{
 		id = 'd';	// Default Lagoon ID 

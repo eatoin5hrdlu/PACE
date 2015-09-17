@@ -34,7 +34,7 @@
 #include "valves.h"        // Includes param.h (change constants there)
 #include "temperature.h" 
 
-VALVES valves = VALVES();
+VALVES valves = VALVES(NUM_VALVES);
 TEMPERATURE temp = TEMPERATURE(0);
 
 boolean auto_temp;   // Automatically control Heater
@@ -120,6 +120,7 @@ void mixer(byte v)
 
 boolean lagoon_command(char c1, char c2, int value)
 {
+char reply[40];
 byte d;
 	switch(c2)
 	{
@@ -156,7 +157,6 @@ byte d;
 			break;
 		case 'h':
 			digitalWrite(HEATER, d);
-			valves.report();
 			break;
 		case 'i':
 			if (c2 != 0)
@@ -180,21 +180,32 @@ byte d;
 			auto_valve = false;
 			valves.openValve(c2);
 			break;
-		case 'r':
-			saveRestore(RESTORE);
+		case 'r':  
+			switch(c2) {
+				case 'v': valves.report(reply);
+					  Serial.println(reply);
+					   break;
+				case 't':
+					Serial.print("temperature(");
+					Serial.print(temp.celcius());
+					Serial.println(").");
+					break;
+				default: saveRestore(RESTORE);
+					 break;
+			}
 			break;
 		case 's':
 			saveRestore(SAVE);
 			break;
 		case 't':
-			Serial.println(temp.celcius());
 			break;
 		case 'v':
-			valves.adjust(c2,500);
+			valves.adjust(c2,value);
 			break;
 		default:
 			return false;
 	}
+	if (strlen(reply) > 0) Serial.println(reply);
 	return true;
 }
 
@@ -266,16 +277,22 @@ void setup()
 {
 	auto_temp = true;  // Maintain Temperature Control
 	auto_valve = true;  // Maintain Flow
-
-	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 1);
-	pinMode(LED, OUTPUT);  digitalWrite(LED, 1);
-	// pinMode(MIXER, OUTPUT);
-        analogWrite(MIXER, 0);
+    //   setup_valve(Valve#,Pin#,Time,Direction)
 
 	pinMode(OUTFLOW,  OUTPUT);  digitalWrite(OUTFLOW,   0);
 	pinMode(HOSTCELLS, OUTPUT); digitalWrite(HOSTCELLS, 0);
 	pinMode(INDUCER1,  OUTPUT); digitalWrite(INDUCER1,  0);
 	pinMode(INDUCER2,  OUTPUT); digitalWrite(INDUCER2,  0);
+
+	valves.setup_valve(0, LAGOONOUT, 40000, OUTFLOW); // ID,Pin,Tms,Dir
+	valves.setup_valve(1, HOSTCELLS, 35000, INFLOW);  // Host Cells
+	valves.setup_valve(2, INDUCER1,  5000, INFLOW);   // Arabanose
+	valves.setup_valve(3, INDUCER2,     0, INFLOW);   // cAMP
+
+	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 1);
+	pinMode(LED, OUTPUT);  digitalWrite(LED, 1);
+	// pinMode(MIXER, OUTPUT); No need to set pinMode on PWM output
+        analogWrite(MIXER, 0);
 
 	interval = millis();
 	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit

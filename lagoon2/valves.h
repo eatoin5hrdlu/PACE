@@ -1,7 +1,7 @@
 #ifndef VALVES_v1_h
 #define VALVES_v1_h
 #define LIBRARY_VERSION	1.0.0
-//
+// FROM LAGOON2
 // The number of valves and initial timings are specified in
 // the constructor, rather than having a parameterized object.
 //
@@ -28,15 +28,12 @@ class VALVES
 {
  public:
 
-  VALVES() {
-    size = NUM_VALVES;
-    //   setup_valve(Valve#,Pin#,Time,Direction)
-    setup_valve(0, 5, 40000, OUTFLOW);  // Valve#, Pin#, TimeMs, Direction
-    setup_valve(1, 4, 35000, INFLOW);   // HOST CELLS
-    setup_valve(2, 3,  5000, INFLOW);   // INDUCER 1 ( Ara )
-    setup_valve(3, 2,     0, INFLOW);   // INDUCER 2 ( cAMP )
-    flow = ALLFLOW;
-    cycletime = 60000;    // One minute cycle time
+  VALVES(int n) {
+    int i;
+    size = n;
+    flow = ALLFLOW;                     // IN and OUT-Flow enabled
+    for(i=0;i<n;i++) valve_pin[i] = -1; // Mark as undefined
+    cycletime = DEFAULT_CYCLETIME*1000; // Cycle in seconds, store as ms
   }
 
   void setup_valve(int v, byte pn, int tm, byte dir) {
@@ -44,6 +41,7 @@ class VALVES
     valve_pin[v] =  pn;
     valve_dir[v] = dir;
     valve_open[v] = 0;
+    digitalWrite(pn,0); // Valve off (closed?) by default
   }
 
   void enable_outflow(void)  { flow |= OUTFLOW;  }
@@ -51,25 +49,41 @@ class VALVES
   void enable_inflow(void)   { flow |= INFLOW;   }
   void disable_inflow(void)  { flow &= ~INFLOW;  }
 
-   void report() {
-      for(int i=0; i<NUM_VALVES; i++)
-      {
-        Serial.println(valve_time[i]);
+  int getSize(void)           { return size;  }
+  int getCycletime(void)      { return cycletime/1000;  }
+  void setCycletime(int secs) { cycletime = secs*1000; }
+
+  boolean setValve(int pin, int time) {
+    int i;
+    for(i=0;i<size;i++) {
+      if (valve_pin[i] == pin) {
+	valve_time[i] = time;
+	return true;
       }
+    }
+    return false;
+  }
+
+  // report() takes a pointer to a buffer 
+   void report(char *reply) {
+     char *cp = reply;
+     sprintf(cp,"valvetimes([");
+     cp += 12;
+     for(int i=0; i<size; i++)
+       if (valve_pin[i] != -1) {
+	 sprintf(cp, "%4d,",valve_time[i]);
+	 cp += 5;
+       }
+     sprintf(cp-1,"]).");
    }
 
 boolean checkValves(void) {
       unsigned long now = millis();
 
       if (now > lasttime + cycletime) { // Time to open valves
-	Serial.println(".");
 	for (int i=0; i<size; i++) {
-	  if (valve_open[i] != 0) {
-	    Serial.print("Valve was left open!!");
-	    closeValve(i);
-	  }
-	  openValve(i);  // Open valves with positive on-time
-	  delayMicroseconds(100);
+	  openValve(i);                
+	  delayMicroseconds(100);  // Spread out switching current surges
 	}
 	lasttime = millis();
 
@@ -81,30 +95,27 @@ boolean checkValves(void) {
 	      closeValve(i);
 	    }
 	}
+      return true;
   }
 
 // Valve will never open if it's "open time" is zero
 
   void openValve(int v)      {
-    if (valve_time[v] != 0) {
-      Serial.print("valve ");
-      Serial.print(v);
-      Serial.println(" open");
+    if (valve_time[v] != 0 && (valve_dir[v]&flow)) {
       digitalWrite(valve_pin[v],1);
-       valve_open[v] = millis();
+      valve_open[v] = millis(); // when this valve was opened
     }
   }
 
   void closeValve(int v)     {
-    Serial.print("valve ");
-    Serial.print(v);
-    Serial.println(" closed");
     digitalWrite(valve_pin[v],0);
     valve_open[v] = 0;
   }
-  int *getTimes()            { return &valve_time[0];   }
-  int getTime(int vchar)       { return valve_time[(int)(vchar-'1')]; }
-  int setTime(char vchar, int t)  { valve_time[(int)(vchar-'1')] = t; }
+
+  int *getTimes()               { return &valve_time[0];   }
+  int getTime(int vchar)        { return valve_time[(int)(vchar-'1')]; }
+  int setTime(char vchar, int t){ valve_time[(int)(vchar-'1')] = t; }
+
   void adjust(char vchar, int value) {
     int v = (int)(vchar - '1');
     Serial.print("adjusting valve "); Serial.println(v);
@@ -126,8 +137,19 @@ boolean checkValves(void) {
   unsigned long cycletime; // Cycle duration (always > valve on time)
 
   int testtime;
+  int pinPosition(int pin) {
+    int i;
+    for(i=0;i<size;i++)
+      if (valve_pin[i] == pin)
+	return i;
+    return -1;
+  }
+  int positinPin(int pos) {
+    if (pos < size && valve_pin[pos] != -1)
+      return(valve_pin[pos]);
+    return -1;
+  }
   };
 #endif
-
 
 
