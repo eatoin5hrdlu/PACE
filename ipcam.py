@@ -13,6 +13,7 @@ import evocv
 
 rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
 bbfp = None
+threshold = 10
 
 def on_mouse(event, x, y, flags, params):
     global rbox
@@ -54,6 +55,8 @@ class ipCamera(object):
     def __init__(self):
         global debug
         self.params = None
+        if 'lux' in sys.argv:
+            threshold = 200
         for root in sys.argv:  # See if anything on the command-line matches a .setting file
             if os.path.isfile(root + ".settings") :
                 self.configFile = root + ".settings"
@@ -88,7 +91,7 @@ class ipCamera(object):
             debug = debug + "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
         self.evocv  = evocv.EvoCv(1,  # Detect green(1) blobs > Width/2 < Height
-                                  self.params['lagoonWidth']/2, 
+                                  self.params['lagoonWidth']/3, 
                                   self.params['lagoonHeight'])
 
     def nullImage(self, img, who) :
@@ -456,8 +459,9 @@ def load(name, file, default_dict) :
 
 
 def dark(image) :
+    global threshold
     totallight = np.average( tuple(ord(i) for i in image.tostring()) )
-    if ( totallight < 10 ) :
+    if ( totallight < threshold ) :
         return True
     if ('baseline' in sys.argv):
         print "msg('Must be dark to create baseline (camera heat image)')."

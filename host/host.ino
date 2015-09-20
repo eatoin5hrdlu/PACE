@@ -1,6 +1,6 @@
 #include "param.h"        // Includes param.h (change constants there)
 #include <Wire.h>
-#include <Adafruit_MLX90614.h>
+#include "Adafruit_MLX90614.h"
 Adafruit_MLX90614 mlx;
 // #define DEBUG 1
 #define EOT "end_of_data"
@@ -117,9 +117,9 @@ int RomAddress  = 0;
 byte id = 'z'; // Zeno = unassigned, by default
 int gcycletime;
 float target_temperature;
-float target_turbidity;
+int target_turbidity;
 int gtscale;
-float gtoffset; // Offset and scale for Turbidity calculation
+int gtoffset;  // Offset and scale for Turbidity calculation
 
 int interval;   // Variable to keep track of the time
 
@@ -169,51 +169,29 @@ void saveRestore(int op)
 	RomAddress = 0;
 	moveData(op, 1, &id);
 	moveData(op, sizeof(float), (byte *) &target_temperature);
-	moveData(op, MAX_VALVES*sizeof(int), (byte *) valves.getTimes());
-	moveData(op, sizeof(float), (byte *) &target_turbidity);
+	moveData(op, NUM_VALVES*sizeof(int), (byte *) valves.getTimes());
+	moveData(op, sizeof(int), (byte *) &target_turbidity);
 	moveData(op, sizeof(int), (byte *) &gtscale);
-	moveData(op, sizeof(float), (byte *) &gtoffset);
+	moveData(op, sizeof(int), (byte *) &gtoffset);
 	moveData(op, sizeof(int), (byte *) &gcycletime);
-}
-
-void printHelp(void)
-{
-String msg = "commands([a(automode),";
-       msg = msg + "at(auto_temp),";
-       msg = msg + "af(auto_pump),";
-       msg = msg +       "av(auto_valve),";
-       msg = msg +       "i(id),"
-	       +       "m(manual),"
-	       +       "mt(manual_temp),"
-	       +       "mf(manual_pump),"
-	       +       "mv(manual_valve),"
-	       +       "pN1(pump_on),"
-	       +       "pN0(pump_off),"
-	       +       "iN(increase_valve),"
-	       +       "dN(decrease_valve),"
-	       +       "cN(calibrate_valve),"
-	       +       "r(run)]).";
-     	       	       
-      sout(msg.c_str());
 }
 
 int turbread[10];
 int turbindex = 0;
 
-double ODhist[10];
+int ODhist[10];
 int ODhindex = 0;
 
-#define TURB_DELAY 10
+#define TURB_DELAY 2
 int turbdelay = 0;
 
-double turbidity() {
+int turbidity() {
 int i;
-double total = 0.0;
+long int total = 0;
 	for (i=0;i<10;i++) {
 		total += ODhist[i];
-		Serial.println(total);
 	}
-	return total/10.0;
+	return total/10;
 }
 
 /* Assumes constant offset for turbidity calculation */
@@ -237,7 +215,7 @@ void forceTurbidity(int currentTurbidity)
 int checkTurbidity() {
 int highlow = 0;
 int i, t, avg;
-double OD;
+int OD;
 	digitalWrite(LASER,1);
 	delay(100);
 // Read Turbidity and bump the ReadArray index
@@ -248,7 +226,7 @@ double OD;
 // Average the last ten values and bump the delay index
 	avg = 0;
 	for (i=0;i<10;i++) avg += turbread[i];
-	OD = ((double) avg / 9100.0);
+	OD = avg/10;
 	turbdelay = (turbdelay+1)%TURB_DELAY;
 // After a certain delay, store the average Optical Density
 	if (turbdelay == 0) {
@@ -301,7 +279,7 @@ int hight,lowt;
 			}
 			break;
 		case 'b':
-		        sprintf(reply,"turbidity(%f).",turbidity());
+		        sprintf(reply,"turbidity(%d).",turbidity());
 			soutln(reply);
 			break;
 		case 'c':
@@ -313,7 +291,7 @@ int hight,lowt;
 			break;
 		case 'h':
 		        switch(c2) {
-			 case 'e': printHelp();break;
+			 case 'e': break;
 			 default :
 			 	 digitalWrite(HEATER, d);
 				 digitalWrite(LED, d);
@@ -365,7 +343,7 @@ int hight,lowt;
 		        tf = temp.celcius() * 10.0;
 			hight = (int) tf/10.0;
 			lowt =  ((int)tf) % 10;
-		        sprintf(reply,"%d.%d",hight,lowt);
+		        sprintf(reply,"temperature(%d.%d).",hight,lowt);
 			soutln(reply);
 			break;
 		case 'v':
@@ -451,17 +429,18 @@ boolean once;
 
 void setup()
 {
+int i;
 	bluetooth = true;
 	auto_temp = true;  // Maintain Temperature Control
 	auto_valve = true;  // Maintain Flow (check turbidity)
 
 	pinMode(NUTRIENT,  OUTPUT);
 	digitalWrite(NUTRIENT,   0);
-	valves.setValve(NUTRIENT,5000); // Initially 5 seconds out of 20
+	valves.setup_valve(0,NUTRIENT,5000,INFLOW);
 
 	pinMode(HOSTOUT,  OUTPUT);
 	digitalWrite(HOSTOUT,   0);
-	valves.setValve(HOSTOUT,0);
+	valves.setup_valve(1,HOSTOUT,0,OUTFLOW);
 
 	pinMode(HEATER, OUTPUT); digitalWrite(HEATER, 0);
 	pinMode(AIR, OUTPUT); digitalWrite(AIR, 0);
@@ -477,11 +456,10 @@ void setup()
 	mlx.begin();   // Initialize Mexexis Thermometer
 	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
 	{
-		id = 'd';	// Default Lagoon ID 
-		target_temperature = 36.5;
+		id = 'h';	// Default Lagoon ID (haldane)
+		target_temperature = 37.0;
 		gcycletime = DEFAULT_CYCLETIME;
-		valves.setTime('1',4000);
-		target_turbidity = 0.4;
+		target_turbidity = 400;
 		gtscale = 9100;
 		gtoffset = 0.0;
 		saveRestore(SAVE);
@@ -492,11 +470,12 @@ void setup()
 #ifdef DEBUG
 		sprintf(reply,"tmtbscale(%f,%f,%f).",
 			target_temperature,target_turbidity,gtscale);
-		soutln(reply);
+//		soutln(reply);
 #endif
 	}
 	valves.setCycletime(gcycletime);
 	once = true;
+	for (i=0;i<10;i++) checkTurbidity(); // Fill averaging vector
 }
 
 int cnt_light = 0;
@@ -529,7 +508,4 @@ int tb_thresh;
 #endif
 	}
 
-#ifdef DEBUG
-	Serial.println(turbidity());
-#endif
 }

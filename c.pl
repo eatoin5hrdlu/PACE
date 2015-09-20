@@ -24,7 +24,7 @@ level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
 :- [gbutton].
 
 :- dynamic target_value/2, current_value/4, current_value/2, screen/4.
-:- dynamic component/2, levelStream/1, air/0.
+:- dynamic component/2, levelStream/1, air/0, tauto/0.
 
 %
 % System Configuration
@@ -325,7 +325,13 @@ l1(_W) :-> "User pressed the L1 button"::
 
 lagoon1(_W) :->
        "User selected Lagoon 1"::
-       component(lagoon1,L), writeln(calibrate(lagoon1)), send(L,calibrate).
+       component(lagoon1,L), writeln(calibrate(lagoon1)),
+        ( tauto ->
+	     retract(tauto), Cmd = 'a0'
+	 ;   assert(tauto), Cmd = 'a1'
+	),
+        send(L,converse,Cmd).
+
 lagoon2(_W) :->
        "User selected Lagoon 2"::
        component(lagoon2,L), writeln(calibrate(lagoon2)), send(L,calibrate).
@@ -398,13 +404,13 @@ range_color(Target, Current, Color) :-
     ).
 
 update10(W) :->
+%    writeln(update10(called)),
     get_new_levels,
     get(W, graphicals, Chain),
     chain_list(Chain, CList),
     member(Object, CList),
     component(_Name,Object),        % If one has been created
     send(Object, update),
-%    writeln(update10(completed(Name))),
     fail.
 
 update10(_W) :-> true.
@@ -548,7 +554,7 @@ save_evostat :-
         Options = [stand_alone(true), goal(main)],
         ( current_prolog_flag(windows,true)
          -> qsave_program(evostat, [emulator(swi('bin/xpce-stub.exe'))|Options])
-        ;   qsave_program(evostat, [emulator('/usr/bin/xpce')|Options])
+        ;   qsave_program(evostat, [emulator('/usr/bin/swipl')|Options])
         ).
 
 

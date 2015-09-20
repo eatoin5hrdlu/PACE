@@ -118,7 +118,6 @@ boolean checkValves(void) {
 
   void adjust(char vchar, int value) {
     int v = (int)(vchar - '1');
-    Serial.print("adjusting valve "); Serial.println(v);
     if (value > 0 && valve_time[v] < cycletime + value)
       valve_time[v] += value;
     else if (value < 0 && valve_time[v] >= abs(value))
