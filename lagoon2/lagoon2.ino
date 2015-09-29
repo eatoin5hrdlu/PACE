@@ -166,10 +166,15 @@ byte d;
 			}
 			break;
 		case 'l':
-			digitalWrite(LED, d);
+	                if (d == 1)
+				digitalWrite(LED, 0); // Active low
+			else
+				digitalWrite(LED, 1);
 			break;
 		case 'm':
-			Serial.print("mixer ");
+			Serial.print("mixer(");
+			Serial.print(d);
+			Serial.println(").");
 			Serial.println(d);
 			mixer(d);
 			break;
@@ -200,7 +205,7 @@ byte d;
 		case 't':
 			break;
 		case 'v':
-			valves.adjust(c2,value);
+			valves.setTime(c2,value);
 			break;
 		default:
 			return false;
