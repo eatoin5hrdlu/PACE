@@ -1,6 +1,6 @@
+#!C:/cygwin/Python27/python -u
 #!/usr/bin/python -u
 #!C:/Python27/python -u
-#!C:/cygwin/Python27/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
 from os  import popen
@@ -13,7 +13,7 @@ import evocv
 
 rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
 bbfp = None
-threshold = 10
+threshold = 1100
 
 def on_mouse(event, x, y, flags, params):
     global rbox
@@ -75,12 +75,11 @@ class ipCamera(object):
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
         if isinstance(self.params['mac'],int) :
-#            print "MAC indicates that we are using a USB camera"
-            self.usbcam = cv2.VideoCapture(self.params['mac'])
-#            self.usbcam.open(0)
+            print "MAC indicates that we are using a USB camera"
+            self.usbcam = cv2.VideoCapture(1) # self.params['mac'])
             time.sleep(0.1)
             x = self.usbcam.read()
-#           print "VideoCapture returned " + str(self.usbcam) + " test read returned =" + str(x)
+            print "VideoCapture returned " + str(self.usbcam) + " test read returned =" + str(x)
             self.ip = None
         else :
             self.ip = self.ValidIP(self.params['mac'])
@@ -491,6 +490,9 @@ def getFluor(ipcam) :
         orig = ipcam.lagoonImage()
         (bl, gr, rd) = cv2.split(orig)
         fluor = cv2.add(fluor, cv2.subtract(gr,cv2.add(bl/2,rd/2)))
+        text = str(cntr) + "/" + str(frames)
+        cv2.rectangle(fluor,(20,50), (160,0), 0, -1)
+        cv2.putText(fluor,text, (20,40), cv2.FONT_HERSHEY_SIMPLEX, 1, 255,3)
         cv2.imshow("camera",fluor)
         if cv.WaitKey(1) == 27:
             exit()
@@ -513,7 +515,7 @@ if __name__ == "__main__" :
         if (f.startswith('mypic')) :
             os.remove(f)
     ipcam = setupCamera()  # Needs  {<arg1>|<hostname>}.settings
-    if ( dark(ipcam.lagoonImage() ) ) :
+    if ('fluor' in sys.argv) :
         getFluor(ipcam)
         exit(0)
     (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
