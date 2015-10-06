@@ -1,5 +1,5 @@
-#!C:/cygwin/Python27/python -u
 #!/usr/bin/python -u
+#!C:/cygwin/Python27/python -u
 #!C:/Python27/python -u
 import sys, os, time, socket, subprocess, re, traceback
 import base64, urllib2
@@ -76,7 +76,7 @@ class ipCamera(object):
         self.usbcam = None
         if isinstance(self.params['mac'],int) :
             print "MAC indicates that we are using a USB camera"
-            self.usbcam = cv2.VideoCapture(1) # self.params['mac'])
+            self.usbcam = cv2.VideoCapture(self.params['mac']) # self.params['mac'])
             time.sleep(0.1)
             x = self.usbcam.read()
             print "VideoCapture returned " + str(self.usbcam) + " test read returned =" + str(x)
@@ -501,7 +501,13 @@ def getFluor(ipcam) :
         print "Creating baseline file"
         cv2.imwrite(basefile, fluor)
     else :
+        cv2.imshow("camera",fluor)
+        if cv.WaitKey(10000) == 27:
+            exit()
         fluor = cv2.subtract(fluor,baseline)
+        cv2.imshow("camera",fluor)
+        if cv.WaitKey(10000) == 27:
+            exit()
     if (dark(ipcam.lagoonImage())) :
         for k in lagoon.keys():
             bb = lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
