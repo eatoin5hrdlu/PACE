@@ -1,5 +1,9 @@
 aristotle eth0  00:26:9e:fd:94:06  
 aristotle wlan0 00:26:c7:5c:64:62  
+
+buffon    eth0  04:7d:7b:aa:34:74  
+buffon    wlan0 60:d8:19:d4:59:fc  
+
 cuvier    eth0  60:eb:69:03:7b:64  
 cuvier    wlan0 00:26:c7:53:31:e4  
 
@@ -241,3 +245,24 @@ WITH_XIMEA=OFF
 WITH_XINE=OFF
 ZLIB_LIBRARY=/usr/lib/i386-linux-gnu/libz.so
 
+
+EMACS SETUP (as a favor to Peter Reintjes)
+Add file ~/.emacs containing:
+------------------------------------------------
+(when window-system (set-frame-size (selected-frame) 120 20))
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(inhibit-startup-screen t))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+(when window-system (set-frame-size (selected-frame) 120 32))
+
+(setq initial-frame-alist '((left . 100) (top . 50)))
+----------------------------------------------------------end of ~/.emacs
