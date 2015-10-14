@@ -1,5 +1,7 @@
 aristotle eth0  00:26:9e:fd:94:06  
 aristotle wlan0 00:26:c7:5c:64:62  
+cuvier    eth0  60:eb:69:03:7b:64  
+cuvier    wlan0 00:26:c7:53:31:e4  
 
 
 Prerequisites:
@@ -238,3 +240,4 @@ WITH_VTK=ON
 WITH_XIMEA=OFF
 WITH_XINE=OFF
 ZLIB_LIBRARY=/usr/lib/i386-linux-gnu/libz.so
+
