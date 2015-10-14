@@ -511,7 +511,8 @@ c(Name) :-
 
 main :-      pce_main_loop(main).
 
-main(Argv) :-
+main(Argv) :- 
+        cd('/home/peter/src/PACE'),  % savestate can now be run from anywhere
         set_prolog_flag(save_history,false),
 	at_halt(pathe_report(verbose)),
         load_foreign_library(plblue),

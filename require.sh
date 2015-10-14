@@ -59,17 +59,15 @@ Edit line 117 in /etc/lightdm/lightdm.conf to say
 autologin-user=<user>
 
 AUTOLAUNCH EvoStat Application:
+NB: putting a .desktop file into ~/.config/autostart didn't work
 
-Put the following into ~/.config/autostart/EvoStat.desktop
---------------------------
-[Desktop Entry]
-Type=Application
-Path=/home/peter/src/PACE
-Exec=/home/peter/src/PACE/evostat
-Name=EvoStat
-Icon=/home/peter/src/PACE/evostat.png
----------------------------------------------end of EvoStat.desktop
-
+/etc/xdg/lxsession/LXDE/autostart  file must look like:
+-----------------------------------------------
+@lxpanel --profile LXDE
+@pcmanfm --desktop --profile LXDE
+@xscreensaver -no-splash
+@/home/peter/src/PACE/evostat
+-------------------------------------end of autostart file
 
 NETWORKING:
 
