@@ -1,3 +1,7 @@
+aristotle eth0  00:26:9e:fd:94:06  
+aristotle wlan0 00:26:c7:5c:64:62  
+
+
 Prerequisites:
 
 Windows or Linux system with github:eatoin5hrdlu/{plblue,PACE}.git
