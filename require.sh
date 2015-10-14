@@ -20,6 +20,8 @@ If you want to be a contributor (e.g. change the shared code):
     c) public RSA key
     d) An example of your improvments the code/bug fix.
 
+mkdir src
+cd src
 git clone https:github.com/eatoin5hrdlu/plblue.git
 git clone https:github.com/eatoin5hrdlu/PACE.git
 
@@ -51,7 +53,22 @@ arduino
 swi-prolog     ( assuming the repository version of swi-prolog is ok)
 python-opencv  (                       "             OpenCV         )
 
+AUTOLOGIN MODE:
+Edit line 117 in /etc/lightdm/lightdm.conf to say
 
+autologin-user=<user>
+
+AUTOLAUNCH EvoStat Application:
+
+Put the following into ~/.config/autostart/EvoStat.desktop
+--------------------------
+[Desktop Entry]
+Type=Application
+Path=/home/peter/src/PACE
+Exec=/home/peter/src/PACE/evostat
+Name=EvoStat
+Icon=/home/peter/src/PACE/evostat.png
+---------------------------------------------end of EvoStat.desktop
 
 
 NETWORKING:
