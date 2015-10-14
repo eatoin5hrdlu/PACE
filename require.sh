@@ -1,8 +1,146 @@
-#!/bin/bash
-sudo apt-get install swi-prolog emacs python-opencv
+Prerequisites:
+
+Windows or Linux system with github:eatoin5hrdlu/{plblue,PACE}.git
+
+If you want to be a contributor (e.g. change the shared code):
+ 1) Create a GitHub account
+ 2) Send Peter Reintjes (peter.reintjes@ncmls.org):
+    a) your CV/resume
+    b)  <hostname> of your computer
+    c) public RSA key
+    d) An example of your improvments the code/bug fix.
+
+git clone https:github.com/eatoin5hrdlu/plblue.git
+git clone https:github.com/eatoin5hrdlu/PACE.git
+
+  plblue is the Bluetooth support library (creates loadable shared object)
+
+  PACE is the Main EvoStat control software and Arduino sketches
+
+ A high quality (HD) camera such as LifeCam (USB or IP)
+
+ In PACE directory, copy template.pl to <hostname>.pl
+ Edit <hostname>.pl to reflect your configuration
+  
+
+DEBIAN8:
+
+An Evostat under Debian 8 requires the following packages to be installed:
+
+(Generating a similar manifest for other Linux distributions would be helpful)
 
 
-# CMAKE OPTIONS
+(Lenovo/ThinkPad wifi) iwlwifi-firmware firmware-realtek
+ssh (including sshd)
+git
+build-essentials
+emacs (for Peter R)
+cheese (for camera support)
+bluez bluetooth libbluetooth-dev python-bluez blueman
+arduino
+swi-prolog     ( assuming the repository version of swi-prolog is ok)
+python-opencv  (                       "             OpenCV         )
+
+
+
+
+NETWORKING:
+
+Edit /etc/network/interfaces to have something like:
+
+auto eth0
+iface eth0 inet dhcp
+allow-hotplug eth0
+
+auto wlan0
+iface wlan0 inet dhcp
+wpa-driver wext
+wpa-ap-scan 1
+wpa-proto WPA
+wpa-key-mgmt WPA-PSK
+
+# SplatSpace
+#wpa-ssid splatspace
+#wpa-psk <hex-encoded-passphrase>
+
+Run "wpa_passphrase <ssid> <passphrase>" to get the encoded passphrase
+
+SSH
+
+Edit /etc/ssh/sshd_config:
+
+To have the line:  PermitRootLogin yes
+Instead of:        PermitRootLogin without-password
+
+"without-password' turns off password authentication for root, hence no login
+"without-password" is a poor choice of words since it implies the opposite.
+Basically, this string is either "yes" or "<anything that isn't 'yes'>"
+
+
+RSAAuthentication yes
+PubkeyAuthentication yes
+#AuthorizedKeysFile	%h/.ssh/authorized_keys
+
+# Don't read the user's ~/.rhosts and ~/.shosts files
+IgnoreRhosts yes
+# For this to work you will also need host keys in /etc/ssh_known_hosts
+RhostsRSAAuthentication no
+# similar for protocol version 2
+HostbasedAuthentication no
+# Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
+#IgnoreUserKnownHosts yes
+
+# To enable empty passwords, change to yes (NOT RECOMMENDED)
+PermitEmptyPasswords no
+
+# Change to yes to enable challenge-response passwords (beware issues with
+# some PAM modules and threads)
+ChallengeResponseAuthentication no
+
+# Change to no to disable tunnelled clear text passwords
+#PasswordAuthentication yes
+
+# Kerberos options
+#KerberosAuthentication no
+#KerberosGetAFSToken no
+#KerberosOrLocalPasswd yes
+#KerberosTicketCleanup yes
+
+# GSSAPI options
+#GSSAPIAuthentication no
+#GSSAPICleanupCredentials yes
+
+X11Forwarding yes
+X11DisplayOffset 10
+PrintMotd no
+PrintLastLog yes
+TCPKeepAlive yes
+#UseLogin no
+
+#MaxStartups 10:30:60
+#Banner /etc/issue.net
+
+# Allow client to pass locale environment variables
+AcceptEnv LANG LC_*
+
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# Set this to 'yes' to enable PAM authentication, account processing,
+# and session processing. If this is enabled, PAM authentication will
+# be allowed through the ChallengeResponseAuthentication and
+# PasswordAuthentication.  Depending on your PAM configuration,
+# PAM authentication via ChallengeResponseAuthentication may bypass
+# the setting of "PermitRootLogin without-password".
+# If you just want the PAM account and session checks to run without
+# PAM authentication, then enable this but set PasswordAuthentication
+# and ChallengeResponseAuthentication to 'no'.
+UsePAM yes
+
+
+
+BUILDING OPENCV FROM SOURCE:
+
+# CMAKE OPTIONS for OPENCV
 
 BUILD_EXAMPLES=ON
 BUILD_JASPER:=OFF
