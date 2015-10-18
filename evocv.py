@@ -136,13 +136,10 @@ class EvoCv(object):
            USB camera likes single erode->dilate cycle erodeDilate(img,1,1,1)
            TODO: Automate variation of these parameters to get a good reading"""
 	emp = self.emphasis(img)
-        self.showUser(emp,pause)
 #        con = self.contrast(emp,iter=1)
         con = self.contrast(emp,iter=1,scale=1.4, offset=-50)
-        self.showUser(con,pause)
 	gray = self.erodeDilate(con, 1, 1, 1)
 	gray2 = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
-        self.showUser(gray2,pause)
         contours, _ = cv2.findContours(gray2, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 	if (pause != 0) :
             self.debug = self.debug + str(len(contours)) + " contours ( "

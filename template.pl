@@ -10,9 +10,11 @@ config( [
 	 numLagoons(4),
          imageSize(600,500),
          lagoonRegion(640,7,892,700),
+	 cellstatRegion(220,10,550,200),  % Location of the Cellstat
 	 lagoonHeight(280),    % divisor for levelScale
 	 lagoonWidth(100),
-	 levelScale(100),   % 100 gives level as percentage of lagoonHeight
+	 levelScale(100),   % Maximum percentage or mL
+	 levelOffset(10),   % Minimum percentage or mL
 	 frames(100),       % number of frames for lumosity integration
 	 darkness(60),      % Average pixel threshold to identify darkness
 	 camera(outdoor),

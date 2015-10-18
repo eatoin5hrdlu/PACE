@@ -13,7 +13,7 @@ import evocv
 
 rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
 bbfp = None
-threshold = 1100
+threshold = 60
 
 def on_mouse(event, x, y, flags, params):
     global rbox
@@ -56,7 +56,7 @@ class ipCamera(object):
         global debug
         self.params = None
         if 'lux' in sys.argv:
-            threshold = 200
+            threshold = 100
         for root in sys.argv:  # See if anything on the command-line matches a .setting file
             if os.path.isfile(root + ".settings") :
                 self.configFile = root + ".settings"
@@ -75,11 +75,9 @@ class ipCamera(object):
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
         if isinstance(self.params['mac'],int) :
-            print "MAC indicates that we are using a USB camera"
             self.usbcam = cv2.VideoCapture(self.params['mac']) # self.params['mac'])
             time.sleep(0.1)
             x = self.usbcam.read()
-            print "VideoCapture returned " + str(self.usbcam) + " test read returned =" + str(x)
             self.ip = None
         else :
             self.ip = self.ValidIP(self.params['mac'])
@@ -279,8 +277,10 @@ class ipCamera(object):
                 if (lvl == None or lvl == 1000) :
                     debug = debug + "level detection failed\n"
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
-#                    Levels[k] = 100  - ((100.0 * (lvl-bb[1]))/self.params['lagoonHeight'])
-                    Levels[k] = (100.0 * (lvl-bb[1]))/self.params['lagoonHeight']
+                    Levels[k] = self.params['levelOffset']+(self.params['levelScale'] -((self.params['levelScale']*(lvl-bb[1]))/self.params['lagoonHeight']))
+
+
+#                    Levels[k] = (100.0 * (lvl-bb[1]))/self.params['lagoonHeight']
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
                     goodRead = goodRead + 1
                     self.drawLagoons(frame)
