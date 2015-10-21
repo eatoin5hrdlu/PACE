@@ -124,8 +124,9 @@ od(Self, OD600:[real]) :->
 temp(Self, Temp:[real]) :->
 	 send(Self, slot, temperature, Temp).
 
+% Cellstat and Lagoon Bluetooth Communications
 converse(Self, Cmd) :->
-	"Send command to Bluetooth Socket and save Reply"::
+	"Send command to Bluetooth Socket and save Reply ( Cellstat/Lagoon )"::
         get(Self, socket, Socket),
 	( bt_converse(Socket, Cmd, Reply)
 	  -> send(Self, slot, reply, Reply)
@@ -405,10 +406,11 @@ prompt(W, Value:name) :<-
         "Open it, destroy it and return the result"::
         get(W,confirm,Value).
 
-% Bluetooth Connectivity
+% Bluetooth Connectivity for Pumps
 converse(Self, Cmd) :->
 	"Send command to Bluetooth Socket and save Reply"::
         get(Self, socket, Socket),
+	trace,
 	( bt_converse(Socket, Cmd, Reply)
 	  -> read_term_from_atom(Reply,RTerm,[]),
 	     send(Self, slot, reply, RTerm)

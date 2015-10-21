@@ -11,9 +11,13 @@ import cv2
 import cv2.cv as cv
 import evocv
 
+def on_exit(msg) :
+    print "levels(80,60,40,20)."
+    exit(1)
+
 rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
 bbfp = None
-threshold = 60
+threshold = 1100
 
 def on_mouse(event, x, y, flags, params):
     global rbox
@@ -56,7 +60,7 @@ class ipCamera(object):
         global debug
         self.params = None
         if 'lux' in sys.argv:
-            threshold = 100
+            threshold = 200
         for root in sys.argv:  # See if anything on the command-line matches a .setting file
             if os.path.isfile(root + ".settings") :
                 self.configFile = root + ".settings"
@@ -75,9 +79,11 @@ class ipCamera(object):
         self.defaultIP = self.params['defaultIP']
         self.usbcam = None
         if isinstance(self.params['mac'],int) :
+#            print "MAC indicates that we are using a USB camera"
             self.usbcam = cv2.VideoCapture(self.params['mac']) # self.params['mac'])
             time.sleep(0.1)
             x = self.usbcam.read()
+#            print "VideoCapture returned " + str(self.usbcam) + " test read returned =" + str(x)
             self.ip = None
         else :
             self.ip = self.ValidIP(self.params['mac'])
@@ -277,10 +283,8 @@ class ipCamera(object):
                 if (lvl == None or lvl == 1000) :
                     debug = debug + "level detection failed\n"
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
-                    Levels[k] = self.params['levelOffset']+(self.params['levelScale'] -((self.params['levelScale']*(lvl-bb[1]))/self.params['lagoonHeight']))
-
-
-#                    Levels[k] = (100.0 * (lvl-bb[1]))/self.params['lagoonHeight']
+#                    Levels[k] = 100  - ((100.0 * (lvl-bb[1]))/self.params['lagoonHeight'])
+                    Levels[k] = self.params['levelOffset'] + self.params['levelScale'] - ((self.params['levelScale'] * (lvl-bb[1]))/self.params['lagoonHeight'])
                     cv2.line(frame,(bb[0],bb[1]+lvl),(bb[0]+bb[2],bb[1]+lvl), (0,0,255),1)
                     goodRead = goodRead + 1
                     self.drawLagoons(frame)
@@ -525,10 +529,11 @@ if __name__ == "__main__" :
         getFluor(ipcam)
         exit(0)
     (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
+    (cx1,cy1,cx2,cy2) = ipcam.params['cellstatRegion']
     cv.SetMouseCallback('camera', on_mouse, 0)
     bbfp = open('bbox.txt','a')
     if ('locate' in sys.argv):
-        locate = 60
+        locate = 600
     else :
         locate = 1
     for f in range(locate) :
@@ -536,6 +541,7 @@ if __name__ == "__main__" :
         if (img != None) :
             cv2.rectangle(img,(rbox['x1'],rbox['y1']),(rbox['x2'],rbox['y2']),(0,0,255),2)
             cv2.rectangle(img,(y1,x1),(y2,x2),(0,255,0),2)
+            cv2.rectangle(img,(cy1,cx1),(cy2,cx2),(0,200,200),2)
             cv2.imshow("camera",img)
             if cv.WaitKey(400) == 27 :
                 exit()

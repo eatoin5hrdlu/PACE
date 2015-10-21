@@ -404,17 +404,18 @@ range_color(Target, Current, Color) :-
     ).
 
 update10(W) :->
-%    writeln(update10(called)),
     get_new_levels,
     get(W, graphicals, Chain),
     chain_list(Chain, CList),
     member(Object, CList),
     component(_Name,Object),        % If one has been created
+    writeln(sending(Object,update)),
     send(Object, update),
+    writeln(updated(Object)),
     fail.
 
-update10(_W) :-> true.
-%    writeln(finishedupdate10(W)).
+update10(W) :-> % true.
+    writeln(finishedupdate10(W)).
     
 :- pce_end_class.
 
@@ -513,6 +514,7 @@ main :-      pce_main_loop(main).
 
 main(Argv) :- 
         cd('/home/peter/src/PACE'),  % savestate can now be run from anywhere
+        sleep(30),
         set_prolog_flag(save_history,false),
 	at_halt(pathe_report(verbose)),
         load_foreign_library(plblue),
@@ -549,7 +551,7 @@ main(Argv) :-
 	c(Root).
 
 save_evostat :-
-        retract(debug),
+%        retract(debug),
         pce_autoload_all,
         pce_autoload_all,
         Options = [stand_alone(true), goal(main)],
