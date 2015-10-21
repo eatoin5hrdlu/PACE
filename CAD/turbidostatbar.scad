@@ -41,14 +41,14 @@ mirrorthick = 1.8;
      translate([0,0,-(2+baseline/2)])
              maghole(diameter,height,number,0);
      rotate([-10,0,0])
-     translate([-4,depth/4,-4])
+     translate([-4,0.5+depth/4,-4])
           cube([width+2,depth+2,((length-2*width)/2)-1.5],center=true);
      rotate([10,0,0])
      translate([-4,depth/4,+5])
           cube([width+2,depth+2,((length-2*width)/2)-1.5],center=true);
-    rotate([7,0,0])
-     translate([0,-depth/3,0.75])
-          cube([width+2,mirrorthick+0.6,length-(2*diameter+4)],center=true);
+    rotate([8,0,0])
+     translate([0,-depth/3,0.95])
+          cube([width+2,mirrorthick+0.6,length-(2*diameter+5)],center=true);
      }
 }
 
