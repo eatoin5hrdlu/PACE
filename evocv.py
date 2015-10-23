@@ -123,12 +123,22 @@ class EvoCv(object):
         if (alllines == None) :
             self.debug = self.debug + "No horizontal lines found in image"
             return -1
-        topline = 1000
+        topline = 1000 + len(alllines)
+        self.debug = self.debug + "ALLINES " + str(alllines)
         for lines in alllines:
+            self.debug = self.debug + "LINES " + str(lines)
             for l in lines : # Find the highest (minY) line (not on the edge)
+                self.debug = self.debug + "LINE " + str(l)
                 if (l[1] == l[3]) : # Horizontal?
                     if ( l[1] < topline and l[1] > 5 and l[1] < h-5) :
+                        self.debug = self.debug + "\nHighest so far: " + str(l)
                         topline = l[1]
+                    else :
+                        self.debug = self.debug + " NOT RIGHT " + str(l) + " H = " + str(h)
+#        if (topline > 999) :
+#            print "EVOCV: " + self.debug + "END EVOCV"
+#        else:
+#            self.debug = ""
         return topline
 
     def blobs(self, img, pause=0) :

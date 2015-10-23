@@ -59,7 +59,7 @@ initialise(Self, Label:[name]) :->
         send_super(Self, initialise(Label)),
 	send(Self, size, size(650,480)),
 	snapshot('./',File),
-	writeln(snapshot(File)),
+%	writeln(snapshot(File)),
 	send(Self, slot, imageFile, File),
 	send(Self, slot, imageDirectory, './'),
 	new(I, image(File)),
@@ -248,7 +248,7 @@ update(Self) :->
         get(Self,slot,fluorescence,Lux),
 	format(atom(Level2), '~4g', [Level]),
 	format(atom(Lux2), '~4g', [Lux]),
-        concat_atom(['Level ', Level2, '%\n',
+        concat_atom(['Level ', Level2, 'mL\n',
 	             'Temp  ', Target, 'C / ',Temp,' C\n',
                      'Lux   ', LuxTarget, ' / ', Lux2, 'lm' ], Label),
 	send(Self, label, Label),
@@ -322,10 +322,10 @@ outflow(Self) :->
 done(Self) :->
     get(self,slot,target_rate, TargetFlow),
     get(self,slot,rate_input, RateInput),
-    DeltaInput is TargetFlow - RateInput,
+    _DeltaInput is TargetFlow - RateInput,
 %    send(Self,command,[ai,DeltaInput]),
     get(self,slot,rate_output, RateOutput),
-    DeltaOutput is TargetFlow - RateOutput,
+    _DeltaOutput is TargetFlow - RateOutput,
 %    send(Self,command,[ao,DeltaOutput]),
     send(Self,slot,calibration,normal).
 

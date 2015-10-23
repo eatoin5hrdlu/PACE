@@ -239,27 +239,40 @@ freeall :-
 freeall([]).
 freeall([H|T]) :- writeln(free(H)), free(H), freeall(T).
 
-check_error(camera(IP))       :- writeln(error(camera(IP))),!,fail.
+check_error(camera(IP))    :- writeln(error(camera(IP))),!,fail.
 check_error(othererror(D)) :- writeln(error(othererror(D))),!,fail.
-check_error(_).   % Everything else is not an error
+check_error(_).               % Everything else is not an error
+
+send_levels([],_) :-
+     writeln(send_levels(done)).
+send_levels([Level|Levels], N) :-
+     concat_atom(['lagoon',N],Lagoon),
+     write(send(setLevel,Lagoon)), flush_output,
+     send(@Lagoon, setLevel, Level),
+     writeln(sent),
+     NN is N-1,
+     send_levels(Levels,NN).
 
 get_new_levels :-
     ( retract(levelStream(Previous)) ->
 	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
+        writeln(process_response(Levels)),
         check_error(Levels),
-        ( Levels = levels(L4,L3,L2,L1) ->
-	   send(@lagoon1, setLevel, L1),
-	   send(@lagoon2, setLevel, L2),
-	   send(@lagoon3, setLevel, L3),
-	   send(@lagoon4, setLevel, L4)
+        ( Levels =..[levels|LVals] ->
+	   config(List),
+           member(numLagoons(NL),List),
+           send_levels(LVals, NL)
         ;
 	   newFlux(Levels,Previous)
         ),
-	close(Previous)
-    ; true
+        writeln(closing(Previous)),
+	close(Previous),
+        writeln(process_stream_closed)
+    ; writeln(no_process_stream)
     ),
     level_cmd_dir([Cmd|Args],Cwd),
     process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
+    writeln(process_created(Cmd)),
     assert(levelStream(Out)),
     !.
 
@@ -407,15 +420,16 @@ update10(W) :->
     get_new_levels,
     get(W, graphicals, Chain),
     chain_list(Chain, CList),
+    write('update [ '),
     member(Object, CList),
     component(_Name,Object),        % If one has been created
-    writeln(sending(Object,update)),
+%    writeln(sending(Object,update)),
     send(Object, update),
-    writeln(updated(Object)),
+    write(Object),write(' '),flush_output,
     fail.
 
-update10(W) :-> % true.
-    writeln(finishedupdate10(W)).
+update10(_W) :-> writeln(' ]').
+%    writeln(finishedupdate10(W)).
     
 :- pce_end_class.
 
@@ -473,7 +487,7 @@ create(Dialog, Component) :-
 	new(@Name, Class),
 	maplist(send(@Name), Data), % Process all before appending
 	send(Dialog, append(@Name, Position)),
-	writeln(component(Name,@Name)),
+%	writeln(component(Name,@Name)),
         assert(component(Name,@Name)).
 
 about_atom(About) :-
@@ -512,9 +526,10 @@ c(Name) :-
 
 main :-      pce_main_loop(main).
 
-main(Argv) :- 
+main(_Argv) :- 
         cd('/home/peter/src/PACE'),  % savestate can now be run from anywhere
-        sleep(30),
+        current_prolog_flag(pid,PID),
+        (PID < 900 -> sleep(30) ; true),  % Delay when started at boot time (low process ID number)
         set_prolog_flag(save_history,false),
 	at_halt(pathe_report(verbose)),
         load_foreign_library(plblue),
@@ -526,12 +541,12 @@ main(Argv) :-
 	set_stream(user_error,buffer(line)),
 	set_stream(S,alias(user_error))
         ),
-	writeln(argv(Argv)),
+%	writeln(argv(Argv)),
 	config_name(Root),          %  Find out configuration name
-	writeln(consult(Root)),
+%	writeln(consult(Root)),
 	consult(Root),              % Consult it
 	config(List),                         % Get the configuration data
-	writeln(configuration(List)),
+%	writeln(configuration(List)),
 
 	member(screen(W,H,Pos), List),
 	assert(screen(Root,W,H,Pos)),

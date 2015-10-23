@@ -11,8 +11,12 @@ import cv2
 import cv2.cv as cv
 import evocv
 
-def on_exit(msg) :
-    print "levels(80,60,40,20)."
+def on_exit(msg,nLagoons) :
+    if (nLagoons == 3) :
+        print "levels(80,60,40)."
+    else :
+        print "levels(80,60,40,20)."
+    print "message('" + msg + "')."
     exit(1)
 
 rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
@@ -270,7 +274,7 @@ class ipCamera(object):
         debug = debug + ">>>>>>>>>>updateLevels>>>>>>>>>>\n"
         global lagoon
         goodRead = 0
-        while (goodRead != 4) :
+        while (goodRead != self.params['numLagoons']) :
             goodRead = 0
             frame = self.lagoonImage()   # Grab a cropped image centerend on the lagoons
             for k in lagoon.keys():
@@ -280,8 +284,11 @@ class ipCamera(object):
                 debug = debug + str(bb) + "\nSHAPE " + str(subi.shape) + "\n"
 #                print debug
                 lvl = self.evocv.level(subi)
-                if (lvl == None or lvl == 1000) :
+                if (lvl == None or lvl > 999) :
                     debug = debug + "level detection failed\n"
+                    cv2.imshow("camera", subi)
+                    if cv.WaitKey(400) == 27:
+                        exit()
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
 #                    Levels[k] = 100  - ((100.0 * (lvl-bb[1]))/self.params['lagoonHeight'])
                     Levels[k] = self.params['levelOffset'] + self.params['levelScale'] - ((self.params['levelScale'] * (lvl-bb[1]))/self.params['lagoonHeight'])
@@ -297,7 +304,7 @@ class ipCamera(object):
                 else :
                     debug = debug + str(lvl) + " out of range :" + str(bb) + "\n"
                     return None
-            if (goodRead != 4) :
+            if (goodRead != self.params['numLagoons']) :
                 debug = debug + str(goodRead) + " good level reads\n"
         debug = debug + "Levels " + str(Levels) + "\n>>>>>>>>>>>>>>>>>>>>\n"
         return Levels
@@ -585,7 +592,7 @@ if __name__ == "__main__" :
             debug = debug + str(howmany) + " : " + str(previous)
             
     if (tries == 0) :
-        print "levels(80,60,40,20)."
+        on_exit(debug,3)
     else :
         levels = "levels( "+", ".join([str(Levels[k]) for k in Levels.keys()])+").\n"
         print levels
