@@ -94,7 +94,7 @@ class EvoCv(object):
             if (pause != 0) :
                 cv2.imshow("camera",image)
                 if cv.WaitKey(pause) == 27:
-                    exit()
+                    exit(0)
         else :
             print "showUser called with null image (None)"
             traceback.print_stack()
