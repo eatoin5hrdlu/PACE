@@ -17,7 +17,7 @@ def on_exit(msg,nLagoons) :
     else :
         print "levels(80,60,40,20)."
     print "message('" + msg + "')."
-    exit(1)
+    exit(0)
 
 rbox =  { 'x1':100,'y1':100,'x2':110,'y2':110 }
 bbfp = None
@@ -77,7 +77,7 @@ class ipCamera(object):
 
         if (self.params == None) :
             print "requires('", sys.argv[0] + "', or(config_file('<hostname>.settings'),config_file('<evostatname>.settings')),'Create one by modifying template.pl, renaming it to <hostname>.pl and running evostat')."
-            exit(1)
+            exit(0)
 
         self.camType = self.params['camera']
         self.defaultIP = self.params['defaultIP']
@@ -93,7 +93,7 @@ class ipCamera(object):
             self.ip = self.ValidIP(self.params['mac'])
             if (self.ip == None) :
                 print self.params['mac'], " is not a valid IP/MAC for a Camera"
-                exit(1)
+                exit(0)
             self.url = "http://" + self.ip + self.params['picCmd'] + self.params['userpwd']
             debug = debug + "Using URL: " + self.url
             self.req = urllib2.Request(self.url)
@@ -232,8 +232,8 @@ class ipCamera(object):
         (x1,y1,x2,y2) = ipcam.params['lagoonRegion']
         image = self.grab()
         if (image == None) :
-            print "no image from camera."
-            exit()
+            print "camera(fail)."
+            exit(0)
         self.exportImage(image)
         return image[x1:x2,y1:y2,:] # cropped for lagoons
 #        return image
@@ -288,7 +288,7 @@ class ipCamera(object):
                     debug = debug + "level detection failed\n"
                     cv2.imshow("camera", subi)
                     if cv.WaitKey(400) == 27:
-                        exit()
+                        exit(0)
                 if (lvl > 0 and lvl < bb[3]) : # Level is in range
 #                    Levels[k] = 100  - ((100.0 * (lvl-bb[1]))/self.params['lagoonHeight'])
                     Levels[k] = self.params['levelOffset'] + self.params['levelScale'] - ((self.params['levelScale'] * (lvl-bb[1]))/self.params['lagoonHeight'])
@@ -298,7 +298,7 @@ class ipCamera(object):
                     if (frame != None) :
                         cv2.imshow("camera", frame)
                         if cv.WaitKey(pause) == 27:
-                            exit()
+                            exit(0)
                     else :
                           debug = debug + "frame was None after drawLagoons!?\n"  
                 else :
@@ -335,7 +335,7 @@ class ipCamera(object):
                 if (frame != None) :
                     cv2.imshow("camera",frame)
                     if cv.WaitKey(pause) == 27:
-                        exit()
+                        exit(0)
                 else :
                     print "frame was None after drawing bbs"
                     
@@ -506,7 +506,7 @@ def getFluor(ipcam) :
         cv2.putText(fluor,text, (20,40), cv2.FONT_HERSHEY_SIMPLEX, 1, 255,3)
         cv2.imshow("camera",fluor)
         if cv.WaitKey(1) == 27:
-            exit()
+            exit(0)
         cntr = cntr + 1
     if ('baseline' in sys.argv):
         print "Creating baseline file"
@@ -514,11 +514,11 @@ def getFluor(ipcam) :
     else :
         cv2.imshow("camera",fluor)
         if cv.WaitKey(10000) == 27:
-            exit()
+            exit(0)
         fluor = cv2.subtract(fluor,baseline)
         cv2.imshow("camera",fluor)
         if cv.WaitKey(10000) == 27:
-            exit()
+            exit(0)
     if (dark(ipcam.lagoonImage())) :
         for k in lagoon.keys():
             bb = lagoon[k]   # Bounding box relative to cropped 'lagoonImage'
@@ -551,10 +551,10 @@ if __name__ == "__main__" :
             cv2.rectangle(img,(cy1,cx1),(cy2,cx2),(0,200,200),2)
             cv2.imshow("camera",img)
             if cv.WaitKey(400) == 27 :
-                exit()
+                exit(0)
         else:
             print "Image grab returned None in __main__"
-            exit()
+            exit(0)
     debug = debug + "done waiting for brightness to settle"
     bbfp.close()
     bbfp = None

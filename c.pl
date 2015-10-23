@@ -243,20 +243,16 @@ check_error(camera(IP))    :- writeln(error(camera(IP))),!,fail.
 check_error(othererror(D)) :- writeln(error(othererror(D))),!,fail.
 check_error(_).               % Everything else is not an error
 
-send_levels([],_) :-
-     writeln(send_levels(done)).
+send_levels([],_).
 send_levels([Level|Levels], N) :-
      concat_atom(['lagoon',N],Lagoon),
-     write(send(setLevel,Lagoon)), flush_output,
      send(@Lagoon, setLevel, Level),
-     writeln(sent),
      NN is N-1,
      send_levels(Levels,NN).
 
 get_new_levels :-
     ( retract(levelStream(Previous)) ->
 	catch(read(Previous, Levels),Ex,(writeln(caught(Ex,Cmd)),fail)),
-        writeln(process_response(Levels)),
         check_error(Levels),
         ( Levels =..[levels|LVals] ->
 	   config(List),
@@ -265,14 +261,11 @@ get_new_levels :-
         ;
 	   newFlux(Levels,Previous)
         ),
-        writeln(closing(Previous)),
 	close(Previous),
-        writeln(process_stream_closed)
-    ; writeln(no_process_stream)
+    ; true
     ),
     level_cmd_dir([Cmd|Args],Cwd),
     process_create(Cmd,Args,[stdout(pipe(Out)),cwd(Cwd)]),
-    writeln(process_created(Cmd)),
     assert(levelStream(Out)),
     !.
 
