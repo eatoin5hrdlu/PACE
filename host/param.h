@@ -4,6 +4,7 @@
 #define RESTORE	0
 
 #define ANALOG_TEMPERATURE   0 // Analog input for temperature
+#define ANALOG_LEAK          1 // Analog input for leak detection
 #define ANALOG_TURBIDITY     3 // Analog input for turbidity
 
 #define AIR            10     // Control solid-state relay (~120VAC)
@@ -20,6 +21,6 @@
 #define NUM_VALVES      2
 #define MAX_VALVES      6
 
-#define MIXERSPEED 180   // PWM value for top mixer speed
+#define MIXERSPEED 110   // PWM value for top mixer speed
 
 

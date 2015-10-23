@@ -1,6 +1,6 @@
 #include "param.h"        // Includes param.h (change constants there)
 #include <Wire.h>
-#include "Adafruit_MLX90614.h"
+#include <Adafruit_MLX90614.h>pwd
 Adafruit_MLX90614 mlx;
 // #define DEBUG 1
 #define EOT "end_of_data"
@@ -217,7 +217,7 @@ int highlow = 0;
 int i, t, avg;
 int OD;
 	digitalWrite(LASER,1);
-	delay(100);
+	delay(200);
 // Read Turbidity and bump the ReadArray index
 	turbread[turbindex] = analogRead(ANALOG_TURBIDITY);
 	digitalWrite(LASER,0);
@@ -251,7 +251,7 @@ void mixer(byte v)
 	    for(int i=3; i<11; i++) {
 		analogWrite(MIXER, i*MIXERSPEED/10);
 		if (auto_valve) valves.checkValves();
-		delay(500);
+		delay(600);
  	    }
 }
 
@@ -259,8 +259,8 @@ boolean cellstat_command(char c1, char c2, int value)
 {
 byte d;
 float tf;
-int hight,lowt;
-			int low =  ((int)tf) % 10;
+int hight,lowt,tries;
+
 	switch(c2)
 	{
 		case '1': d = 1; break;
@@ -291,7 +291,13 @@ int hight,lowt;
 			break;
 		case 'h':
 		        switch(c2) {
-			 case 'e': break;
+			 case 'e':
+			      break;
+			 case 'i':
+			   sprintf(reply,"odHistory(%d,%d,%d,%d,%d,%d,%d).",
+			      ODhist[0],ODhist[1],ODhist[2],ODhist[6],ODhist[7],ODhist[8],ODhist[9]);
+			      soutln(reply);
+			      break;
 			 default :
 			 	 digitalWrite(HEATER, d);
 				 digitalWrite(LED, d);
@@ -341,13 +347,22 @@ int hight,lowt;
 			break;
 		case 't':
 		        tf = temp.celcius() * 10.0;
+			tries = 0;
+			while ( ( abs(tf) > 1000.0 || abs(tf) < 40.0) && tries++ < 3) {
+			      delay(100);
+			      tf = temp.celcius() * 10.0;
+			}
 			hight = (int) tf/10.0;
-			lowt =  ((int)tf) % 10;
-		        sprintf(reply,"temperature(%d.%d).",hight,lowt);
+			lowt =  abs(((int)tf) % 10); // negative number after decimal unparsable
+		        sprintf(reply,"temperature(%d.%d%d).",hight,lowt,tries);
 			soutln(reply);
 			break;
 		case 'v':
 			valves.adjust(c2,10);
+			break;
+		case 'w':
+		        sprintf(reply, "leak(%d).", analogRead(ANALOG_LEAK));
+			sout(reply);
 			break;
 		default:
 			return false;
@@ -447,7 +462,7 @@ int i;
 	pinMode(LED, OUTPUT);  digitalWrite(LED, 0);
 	pinMode(JARLIGHT, OUTPUT);  digitalWrite(JARLIGHT, 0);
 	pinMode(LASER, OUTPUT);  digitalWrite(LASER, 1);
-	// pinMode(MIXER, OUTPUT);  // Don't need pinMode for PWM output
+	pinMode(MIXER, OUTPUT);  // Don't need pinMode for PWM output
         analogWrite(MIXER, 0);
 
 	interval = millis();
@@ -476,13 +491,24 @@ int i;
 	valves.setCycletime(gcycletime);
 	once = true;
 	for (i=0;i<10;i++) checkTurbidity(); // Fill averaging vector
+	mixer(1);
+}
+
+boolean leak(void)
+{
+int leakage = analogRead(ANALOG_LEAK);
+     sprintf(reply, "leak(%f).",leakage);
+     sout(reply);
+    return false;
 }
 
 int cnt_light = 0;
 int cnt_mixer = 0;
+
 void loop()
 {
 int tb_thresh;
+ while(1) {
 	respondToRequest();     // Check for command
 	delay(1000);
 	if (auto_temp)		// Check and update heater(s)
@@ -494,18 +520,18 @@ int tb_thresh;
 	if (tb_thresh > 0) {
 #ifdef DEBUG
 		Serial.println("Turbidity is defintely too high");
-#endif
 		valves.adjust('1', +100);
+#endif
 	}
 	else if (tb_thresh < 0) {
 #ifdef DEBUG
 		Serial.println("Turbidity is defintely too low");
-#endif
 		valves.adjust('1', -100);
+#endif
 	} else {
 #ifdef DEBUG
 		Serial.println("Turbidity is okay");
 #endif
 	}
-
+    } /* end while(1) */
 }
