@@ -22,3 +22,8 @@
 
 #define DEFAULT_CYCLETIME 60 // This can be changed remembered(EEPROM)
 
+#define VPOS1        0
+#define VPOS2       60
+#define VPOS3       110
+#define VPOS4       159
+#define VPOS        180
