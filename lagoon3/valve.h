@@ -87,6 +87,12 @@ boolean checkValve(void) {
 
   if (disabled)
     return false;
+  
+   if ((outflowon+outflowms) < now )
+     {
+       digitalWrite(LAGOONOUT,0);  // OUTFLOW OFF AT END OF outflowms
+       outflowon = 0;
+     }
 
   if (current != 0 &&  (now > valve_open[current] + valve_time[current]) )
     next_valve();
@@ -96,8 +102,11 @@ boolean checkValve(void) {
       lastcycle = millis();
       current = 0;
       next_valve();
+      if (calibration != 1) {
+	digitalWrite(LAGOONOUT,1);        // OUTFLOW ON AT START OF CYCLE
+	outflowon = millis();
+      }
     }
-
   return true;
 }
 
@@ -106,10 +115,13 @@ boolean checkValve(void) {
   int setTime(char vchar, int t){ valve_time[(int)(vchar-'0')] = t; }
   byte *getAngles()             { return &valve_angle[0];   }
   int setAngle(char vchar, int a){ valve_angle[(int)(vchar-'0')] = a; }
-
+  int setOutflowms(int outms)   { outflowms = outms; }
+  int *getOutflowms()           { return &outflowms; }
+  void calibrate(int c)         { calibration = c; }
  private:
   int size;                         // Number of positions
   int current;                      // Current position
+  int calibration;                  // Calibration Mode 1=inflow, 2=outflow
   boolean up;
   boolean disabled;
   byte     flow;
@@ -119,6 +131,8 @@ boolean checkValve(void) {
 
   unsigned long lastcycle;  // Beginning of current time interval
   unsigned long cycletime; // Cycle duration (always > valve on time)
+  unsigned long outflowon;
+  int outflowms;
  } ;
 #endif
 

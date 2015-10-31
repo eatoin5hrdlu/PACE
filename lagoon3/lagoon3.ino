@@ -8,31 +8,19 @@
  *     c) set auto/manual temperature control
  *     d) set auto/manual flow control
  * 3) Check temperature and manage lagoon heater
- *
- * Commands:
- *  l0 :    Meniscus light off
- *  l1 :    Meniscus light on
- *  h0 :    Heater off
- *  h1 :    Heater on
- *  m0 :    Mixing motor off
- *  m1 :    Mixing motor on
- *  a0 :    Auto modes off
- *  a1 :    Auto modes on
- *  vN :    Go to valve position N, Auto mode off
- *
- *  {id}N : Increase/decrease open time of valve by internal increment
- *
- *  cN : Calibrate valve N
- *      Open it on schedule with other valves closed
- *  r  : Run mode (calibration off)
  */
 #include "param.h"
 
 #include <Servo.h>
 Servo myservo;
+
+int calibration;
+
 void swrite(int val) {
-     digitalWrite(VALVEENABLE,0);
-     delay(150);
+     if (calibration != 2) {  // Do not enable(LOW) when calibrating outflow
+	digitalWrite(VALVEENABLE,0);
+	delay(150);
+     }
      myservo.write(val);
      delay(150);
      digitalWrite(VALVEENABLE,1);
@@ -83,36 +71,56 @@ void moveData(int op, int size, byte *loc)
 
 void saveRestore(int op)
 {
-	if (op == SAVE) Serial.println("save");
-	else            Serial.println("restore");
+	if (op == SAVE) Serial.println("save.");
+	else            Serial.println("restore.");
 	RomAddress = 0;
 	moveData(op, 1, &id);
 	moveData(op, sizeof(float), (byte *) &target_temperature);
+	moveData(op, sizeof(int),   (byte *) valve.getOutflowms());
 	moveData(op, (NUM_VALVES+1)*sizeof(int), (byte *) valve.getTimes());
 	moveData(op, (NUM_VALVES+1)*sizeof(byte), (byte *) valve.getAngles());
 }
 #endif
 
+/* Commands:
+ *  a0 :    Auto modes off
+ *  a1 :    Auto modes on
+ *  cN :    Calibration modes (0,1,2)
+ *  dNaa :  Set angle for valve position N
+ *   EXAMPLE  Set angle for 0th valve position at 10 degrees (rather than 0)    "d010"
+ *   EXAMPLE  Set angle for 4th valve position at 178 degrees (rather than 180) "d4178"
+ *  h0 :    Heater off
+ *  h1 :    Heater on
+ *  l0 :    Meniscus light off
+ *  l1 :    Meniscus light on
+ *  m0 :    Mixing motor off
+ *  m1 :    Mixing motor on
+ *  ph :    Print Help (this list of commands)    
+ *  pN :    Go to Valve position N, auto_valve mode off
+ *  r  :    Restore settings from EEPROM
+ *  tNNNN:  Set target temperature in tenths of degrees  371 = 37.1C
+ *  t  :    Get current temperature
+ *
+ *  n  : Normal (run mode) : calibration off, auto modes on
+ */
+
 void printHelp(void)
 {
-	Serial.print("\n\n");
-	Serial.println("a : set auto {temp, flow, valve} mode");
-	Serial.println("at: set auto heater mode");
-	Serial.println("af: set auto pump mode");
-	Serial.println("av: set auto valve mode");
-	Serial.println("iX : Set ID to X");
-	Serial.println("m : set manual {temp, flow, valve} mode");
-	Serial.println("mt: set manual heater mode");
-	Serial.println("mf: set manual pump mode");
-	Serial.println("mv: set manual valve mode");
-
-	Serial.println("p+N: turn pump N on");
-	Serial.println("p-N: turn pump N off");
-
-	Serial.println("iN: Increase time for valve N");
-	Serial.println("dN: Decrease time for valve N");
-	Serial.println("cN: Calibrate valve N");
-	Serial.println("r:  Normal Run mode");
+	Serial.println("a0: set auto modes off");
+	Serial.println("a1: set auto modes on");
+	Serial.println("cN: Calibrate modes(0=noflow,1=inflow,2=outflow)");
+	Serial.println("dNaaa : Set degrees(angle:(0-180) for Nth valve position");
+	Serial.println("h0 : Heater off auto_temp off");
+	Serial.println("h1 : Heater on  auto_temp off");
+	Serial.println("l0: light off");
+	Serial.println("11: light on");
+	Serial.println("m0: mixer off");
+	Serial.println("m1: mixer on");
+	Serial.println("n:  Normal Run mode (valve enabled, valve pos 0, auto_modes on");
+	Serial.println("pN: set valve to position N, auto_valve off");
+	Serial.println("r:  Restore settings from EEPROM");
+	Serial.println("s:  Save settings in EEPROM");
+	Serial.println("vN : Go to valve position N, auto_valve mode off");
 }
 
 void mixer(byte v)
@@ -132,6 +140,7 @@ boolean lagoon_command(char c1, char c2, int value)
 {
 char reply[40];
 byte d;
+     reply[0] = 0;  
 	switch(c2)
 	{
 		case '1': d = 1; break;
@@ -149,6 +158,14 @@ byte d;
 				auto_valve = false;
 			}
 			break;
+		case 'c':
+		        calibration = c2 - '0';
+			auto_temp = false;
+			auto_valve = false;
+			valve.enable(1);
+			valve.position(0);
+			valve.calibrate(calibration);
+			break;
 		case 'd':
 		        valve.setAngle(c2,value);
 			break;
@@ -162,7 +179,9 @@ byte d;
 			if (c2 != 0)
 				id = c2;
 			else {
-				Serial.println(id);
+				Serial.print("id(");
+				Serial.print(id);
+				Serial.println(").");
 			}
 			break;
 		case 'l':
@@ -178,10 +197,24 @@ byte d;
 			Serial.println(d);
 			mixer(d);
 			break;
-
+		case 'n':
+		        calibration = 0;
+			valve.calibrate(0);
+			valve.enable(1);
+			valve.position(0);
+			auto_temp = true;  // Maintain Temperature Control
+			auto_valve = true;  // Maintain Flow
+			break;
+		case 'o':
+		        if (c2 == 'f') valve.setOutflowms(value);
+			else           return false;
+			break;
 		case 'p':
-		        auto_valve = false;
-			valve.position(c2-'0');
+		        if (c2 == 'h') printHelp();
+			else {
+			     auto_valve = false;
+			     valve.position(c2-'0');
+			}
 			break;
 		case 'r':  
 			switch(c2) {
@@ -201,6 +234,12 @@ byte d;
 			saveRestore(SAVE);
 			break;
 		case 't':
+		        if (c2 == 's') target_temperature = ((float)value)/10.0;
+			else {
+			     Serial.print("temperature(");
+			     Serial.print(temp.celcius());
+			     Serial.println(").");
+			}
 			break;
 		case 'v':
 			valve.setup_valve(c2-'0', value);
@@ -209,6 +248,7 @@ byte d;
 			return false;
 	}
 	if (strlen(reply) > 0) Serial.println(reply);
+	Serial.println("end_of_data");	
 	return true;
 }
 
@@ -222,14 +262,13 @@ void respondToRequest(void)
 		is += (char)c;
 		if (Serial.available() == 0) // It is possible we're too fast
 			delay(100);
-		Serial.println("okay");	
 	}
 	if ( is.length() > 0 )  {   // process the command
 		int value = 0;
 		if (is.length() > 2)
 			value = atoi(&is[2]);
 		if (!lagoon_command(is[0], is[1], value))
-			Serial.println("bad flow command [" + is + "]");
+			Serial.println("bad_command('" + is + "').\nend_of_data");
 	}
 }
 
@@ -278,18 +317,15 @@ boolean once;
 
 void setup()
 {
-	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
-	auto_temp = true;  // Maintain Temperature Control
-	auto_valve = true;  // Maintain Flow
-
+	pinMode(VALVEENABLE,OUTPUT); digitalWrite(VALVEENABLE,1); //no power to valve
 	pinMode(LAGOONOUT, OUTPUT);  digitalWrite(LAGOONOUT, 0);
 	pinMode(HEATER,    OUTPUT);  digitalWrite(HEATER, 1);
 	pinMode(LED,       OUTPUT);  digitalWrite(LED, 1);
-	pinMode(VALVEENABLE,OUTPUT); digitalWrite(VALVEENABLE,1);
+
+	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
 	myservo.attach(VALVEPIN);
-
-//        analogWrite(MIXER, 0 );     // Mixer off
-
+	valve.position(0);
+        analogWrite(MIXER, 0 );     // Mixer off
 	interval = millis();
 
 //	if (true)
@@ -297,6 +333,7 @@ void setup()
 	{
 		id = '1';	// Default Lagoon ID 
 		target_temperature = 36.5;
+		valve.setOutflowms(15000);
 		valve.setup_valve(1, 8000);
 		valve.setup_valve(2, 6000);
 		valve.setup_valve(3, 4000);
@@ -308,6 +345,10 @@ void setup()
 		saveRestore(RESTORE); // Valve timing copied to valve object
 	}
 	once = true;
+	auto_temp = true;  // Maintain Temperature Control
+	auto_valve = true;  // Maintain Flow
+	calibration = 0;
+	valve.calibrate(calibration);
 }
 
 int cnt_light = 0;
@@ -318,6 +359,7 @@ void loop()
 	delay(100);
 	if (auto_temp)		// Check and update heater(s)
 		checkTemperature();
-	if (auto_valve)		// Check and update nutrient valve
+	if (auto_valve) {
 		valve.checkValve();
+	}
 }
