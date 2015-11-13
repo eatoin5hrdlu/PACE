@@ -42,10 +42,11 @@ boolean auto_valve;  // Automatically control Valves
 #include "EEPROM.h"
 int RomAddress  = 0;
 
+int mixerspeed;
 byte id = 'z'; // Zeno = unassigned, by default
 float target_temperature;
-int interval;   // Variable to keep track of the time
 
+int interval;   // Variable to keep track of the time
 int reading[10];
 
 // Keep temperature within 0.5 degree C
@@ -76,6 +77,7 @@ void saveRestore(int op)
 	RomAddress = 0;
 	moveData(op, 1, &id);
 	moveData(op, sizeof(float), (byte *) &target_temperature);
+	moveData(op, sizeof(int),   (byte *) &mixerspeed);
 	moveData(op, sizeof(int),   (byte *) valve.getOutflowms());
 	moveData(op, (NUM_VALVES+1)*sizeof(int), (byte *) valve.getTimes());
 	moveData(op, (NUM_VALVES+1)*sizeof(byte), (byte *) valve.getAngles());
@@ -106,21 +108,18 @@ void saveRestore(int op)
 
 void printHelp(void)
 {
-	Serial.println("a0: set auto modes off");
-	Serial.println("a1: set auto modes on");
-	Serial.println("cN: Calibrate modes(0=noflow,1=inflow,2=outflow)");
-	Serial.println("dNaaa : Set degrees(angle:(0-180) for Nth valve position");
-	Serial.println("h0 : Heater off auto_temp off");
-	Serial.println("h1 : Heater on  auto_temp off");
-	Serial.println("l0: light off");
-	Serial.println("11: light on");
-	Serial.println("m0: mixer off");
-	Serial.println("m1: mixer on");
-	Serial.println("n:  Normal Run mode (valve enabled, valve pos 0, auto_modes on");
-	Serial.println("pN: set valve to position N, auto_valve off");
-	Serial.println("r:  Restore settings from EEPROM");
-	Serial.println("s:  Save settings in EEPROM");
-	Serial.println("vN : Go to valve position N, auto_valve mode off");
+	Serial.println("cmd(a,[0,1],'set auto modes off/on').");
+	Serial.println("cmd(c,[0,1,2],'Calibrate modes(0=normal,1=inflow,2=outflow').");
+	Serial.println("cmd(d,[0,1,2,3,4],[45,90,135,180],'set angle:(0-180) for Nth valve position').");
+	Serial.println("cmd(h,[0,1],'heater off/on auto_temp off').");
+	Serial.println("cmd(l,[0,1],'light off/on').");
+	Serial.println("cmd(m,[0,1],'mixer off/on').");
+	Serial.println("cmd(n,'Normal Run mode (valve enabled, valve pos 0, auto_modes on)').");
+	Serial.println("cmd(p,[1],[0,1,2,3,4],'set valve to position N, auto_valve off').");
+	Serial.println("cmd(r,'Restore settings from EEPROM').");
+	Serial.println("cmd(s,'Save settings in EEPROM').");
+	Serial.println("cmd(t,[371],'Set target temperature in tenth degrees:37.1C').");
+	Serial.println("cmd(t,'Get temperature').");
 }
 
 void mixer(byte v)
@@ -130,7 +129,7 @@ return;
 		analogWrite(MIXER,0);
 	else 
 	    for(int i=3; i<11; i++) {
-		analogWrite(MIXER, i*MIXERSPEED/10);
+		analogWrite(MIXER, i*mixerspeed/10);
 		if (auto_valve) valve.checkValve();
 		delay(500);
  	    }
@@ -248,7 +247,7 @@ byte d;
 			return false;
 	}
 	if (strlen(reply) > 0) Serial.println(reply);
-	Serial.println("end_of_data");	
+	Serial.println("end_of_data.");	
 	return true;
 }
 
@@ -331,8 +330,9 @@ void setup()
 //	if (true)
 	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
 	{
-		id = '1';	// Default Lagoon ID 
-		target_temperature = 36.5;
+		id = '3';	// Default Lagoon ID 
+		target_temperature = 34.5;
+		mixerspeed = MIXERSPEED;
 		valve.setOutflowms(15000);
 		valve.setup_valve(1, 8000);
 		valve.setup_valve(2, 6000);
