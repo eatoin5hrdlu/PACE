@@ -239,6 +239,12 @@ setFlux(Self,Level) :->
        send(Self, slot, fluorescence, Level).
 
 update(Self) :->
+	send_super(Self,converse,'t'),
+        get(Self,slot,reply,Reply),
+        atom_to_term(Reply,TTerm,_TMBindings),
+	TTerm = temperature(TempInt),
+	Temp is float(TempInt)/10.0,
+        send(Self,slot,temperature,Temp),
         get(Self,slot,level,Level),
         get(Self,slot,temperature,Temp),
         get(Self,slot,temperature_t,Target),
