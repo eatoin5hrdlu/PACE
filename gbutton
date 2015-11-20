@@ -12,6 +12,11 @@
 
 :- dynamic tog/1.
 
+parse_reply(Reply, Term, Default) :-
+	catch( atom_to_term(Reply,Term,_TMBindings),
+	       Exception,
+	       ( writeln(caught(Exception,atom_to_term(Reply))), Term = Default)).
+
 getIPfromMAC(_,_) :- fail.
 
 snapshot(Path, FileName) :-
@@ -128,9 +133,11 @@ temp(Self, Temp:[real]) :->
 converse(Self, Cmd) :->
 	"Send command to Bluetooth Socket and save Reply ( Cellstat/Lagoon )"::
         get(Self, socket, Socket),
-	( bt_converse(Socket, Cmd, Reply)
-	  -> send(Self, slot, reply, Reply)
-	  ; send(Self, slot, reply, failed)
+	(Socket = -1 -> send(Self, slot, reply, 'no_connection.')
+	; ( bt_converse(Socket, Cmd, Reply)
+	    -> send(Self, slot, reply, Reply)
+	    ; send(Self, slot, reply, 'failed.')
+	  )
 	).
 
 mac(Self, Addr:[name]) :->
@@ -142,11 +149,11 @@ connect(Self) :->
 	get(Self, mac, Addr),
 	get(Self, socket, OldSocket),
         ( OldSocket > -1 -> bt_close(OldSocket) ; true),
-	repeat(5),
-		bt_socket(Addr, BTSocket),
-	( BTSocket > -1; sleep(1),fail ),
-	!, % Don't need the cut, methods are deterministic
-	send(Self, slot, socket, BTSocket).
+	( bt_socket(Addr, BTSocket) ->
+	  send(Self, slot, socket, BTSocket),
+	  send(Self,colour,colour(green))
+	; send(Self,colour,colour(red))
+	).
 
 insertIP(Cmd, IP, Result) :-
         atom_codes(Cmd, Cs),
@@ -188,8 +195,8 @@ bt(Self, MacAddr) :->
 update(Self) :->
 	send_super(Self,converse,'t'),
         get(Self,slot,reply,Reply),
-        atom_to_term(Reply,TTerm,_TMBindings),
-	TTerm = temperature(Temp),
+	writeln(cellstatreply(Reply)),
+	parse_reply(Reply, temperature(Temp), temperature(113)),
         send(Self,slot,temperature,Temp),
         get(Self,slot,temperature_t,Target),
 	range_color(Target, Temp, Tc),
@@ -202,7 +209,7 @@ update(Self) :->
 	range_color(ODTarget, TurbVal, ODc),
 	mix_colors(Tc,ODc,Color),
 	send(Self, colour(Color)),
-        concat_atom(['\nTemperature: ', Target, ' / ',Temp,'\n',
+        concat_atom(['\nCellStat\nTemperature: ', Target, ' / ',Temp,'\n',
  		'Turbidity:  0.', ODTarget,' / 0.', TurbVal, '\n'], Label),
 	send(Self, label, Label).
 
@@ -232,17 +239,11 @@ initialise(Self, Label:[name]) :->
 	send(Self, slot, fluorescence_t, 0.2),
 	send(Self, slot, fluorescence, 0.0).
 
-setLevel(Self,Level) :->
-       send(Self, slot, level, Level).
-
-setFlux(Self,Level) :->
-       send(Self, slot, fluorescence, Level).
-
 update(Self) :->
 	send_super(Self,converse,'t'),
         get(Self,slot,reply,Reply),
-        atom_to_term(Reply,TTerm,_TMBindings),
-	TTerm = temperature(TempInt),
+	writeln(lagoonreply(Reply)),
+	parse_reply(Reply,temperature(TempInt),temperature(111)),
 	Temp is float(TempInt)/10.0,
         send(Self,slot,temperature,Temp),
         get(Self,slot,level,Level),
@@ -254,12 +255,12 @@ update(Self) :->
         get(Self,slot,fluorescence,Lux),
 	format(atom(Level2), '~4g', [Level]),
 	format(atom(Lux2), '~4g', [Lux]),
+	get(Self,slot,calibration,State),  % The Calibration State is the Message
+	send(Self,State),
         concat_atom(['Level ', Level2, 'mL\n',
 	             'Temp  ', Target, 'C / ',Temp,' C\n',
                      'Lux   ', LuxTarget, ' / ', Lux2, 'lm' ], Label),
-	send(Self, label, Label),
-	get(Self,slot,calibration,State),  % The Calibration State is the Message
-	send(Self,State).
+	send(Self, label, Label).
 
 % Calibration begins after someone sends the 'calibrate' message
 % Lagoons can distiguish between input valves and output valves.
@@ -279,6 +280,13 @@ calibrate(Self) :->
     CLevel is 1.1 * Level,
     send(Self,slot,calibrate_level,CLevel).
 %    send(Self,command, do).  % Disable Output Flow(s)
+
+setLevel(Self,Level) :->
+       send(Self, slot, level, Level).
+
+setFlux(Self,Level) :->
+       send(Self, slot, fluorescence, Level).
+
 
 normal(_Self) :-> true.
 
@@ -381,6 +389,7 @@ initialise(Self,Label:[name]) :->
 	send(Self, size,size(600,84)),
 	send(Self, slot, socket, -1),
 	send(Self, slot, mac, discover),
+	send(Self,colour,colour(black)),
         ( childName(pump, 5, PName),
           free(@PName),
 	  new(@PName, pump(PName)),
@@ -416,11 +425,11 @@ prompt(W, Value:name) :<-
 converse(Self, Cmd) :->
 	"Send command to Bluetooth Socket and save Reply"::
         get(Self, socket, Socket),
-	trace,
-	( bt_converse(Socket, Cmd, Reply)
+	( Socket > -1,
+	  bt_converse(Socket, Cmd, Reply)
 	  -> read_term_from_atom(Reply,RTerm,[]),
 	     send(Self, slot, reply, RTerm)
-	  ; send(Self, slot, reply, failed)
+	  ; send(Self, slot, reply, no_connection)
 	).
 
 mac(Self, Addr:[name]) :->
@@ -432,11 +441,11 @@ connect(Self) :->
 	get(Self, mac, Addr),
 	get(Self, socket, OldSocket),
         ( OldSocket > -1 -> bt_close(OldSocket) ; true),
-	repeat(5),
-		bt_socket(Addr, BTSocket),
-	( BTSocket > -1; sleep(1),fail ),
-	!, % Don't need the cut, methods are deterministic
-	send(Self, slot, socket, BTSocket).
+	( bt_socket(Addr, BTSocket) ->
+	  send(Self, slot, socket, BTSocket),
+	  send(Self,colour,colour(green))
+	; send(Self,colour,colour(red))
+	).
 
 :- pce_end_class.
 

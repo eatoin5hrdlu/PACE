@@ -63,9 +63,10 @@ class VALVE
      char *cp = reply;
      sprintf(cp,"valvetimes([");
      cp += 12;
-     for(int i=0; i<size; i++)
+     for(int i=0; i<size; i++) {
 	 sprintf(cp, "%5d,",valve_time[i]);
 	 cp += 6;
+     }
      sprintf(cp-1,"]).");
    }
 
@@ -125,8 +126,8 @@ boolean checkValve(void) {
   boolean up;
   boolean disabled;
   byte     flow;
-  byte     valve_angle[NUM_VALVES+1];
   int      valve_time[NUM_VALVES+1];
+  byte     valve_angle[NUM_VALVES+1];
   long int valve_open[NUM_VALVES+1];  // When was the valve opened
 
   unsigned long lastcycle;  // Beginning of current time interval

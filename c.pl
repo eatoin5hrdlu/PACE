@@ -261,7 +261,7 @@ get_new_levels :-
         ;
 	   newFlux(Levels,Previous)
         ),
-	close(Previous),
+	close(Previous)
     ; true
     ),
     level_cmd_dir([Cmd|Args],Cwd),
@@ -416,9 +416,9 @@ update10(W) :->
     write('update [ '),
     member(Object, CList),
     component(_Name,Object),        % If one has been created
-%    writeln(sending(Object,update)),
-    send(Object, update),
-    write(Object),write(' '),flush_output,
+    ( send(Object, update) -> write(Object) ; write(failed(Object)) ),
+    write(' '),
+    flush_output,
     fail.
 
 update10(_W) :-> writeln(' ]').

@@ -27,7 +27,7 @@ void swrite(int val) {
 }
 
 #include "valve.h"        // Includes param.h (change constants there)
-VALVE    valve = VALVE(5, VALVEPIN);      // 5-position valve on pin 9
+VALVE    valve = VALVE(NUM_VALVES+1, VALVEPIN);      // 5-position valve on pin 9
 
 
 #include "temperature.h" 
@@ -70,10 +70,10 @@ void moveData(int op, int size, byte *loc)
 			*loc++ = EEPROM.read(RomAddress++);
 }
 
-void saveRestore(int op)
+char *saveRestore(int op)
 {
-	if (op == SAVE) Serial.println("save.");
-	else            Serial.println("restore.");
+	if (op == SAVE) return("save.");
+	else            return("restore.");
 	RomAddress = 0;
 	moveData(op, 1, &id);
 	moveData(op, sizeof(float), (byte *) &target_temperature);
@@ -139,6 +139,7 @@ boolean lagoon_command(char c1, char c2, int value)
 {
 char reply[40];
 byte d;
+int tmp;
      reply[0] = 0;  
 	switch(c2)
 	{
@@ -225,18 +226,19 @@ byte d;
 					Serial.print(temp.celcius());
 					Serial.println(").");
 					break;
-				default: saveRestore(RESTORE);
+				default: strcpy(reply,saveRestore(RESTORE));
 					 break;
 			}
 			break;
 		case 's':
-			saveRestore(SAVE);
+			strcpy(reply,saveRestore(SAVE));
 			break;
 		case 't':
 		        if (c2 == 's') target_temperature = ((float)value)/10.0;
 			else {
+			tmp = (int) (temp.celcius()*10.0);
 			     Serial.print("temperature(");
-			     Serial.print(temp.celcius());
+			     Serial.print(tmp);
 			     Serial.println(").");
 			}
 			break;
@@ -306,7 +308,7 @@ float stdev(int *arr, int size, float avg)
 }
 
 /*
- * setupp()	1) Initializes serial link
+ * setup()	1) Initializes serial link
  *		2) Restores settings from EEPROM
  *		2) Calls flow_setup (pumps)
  *		3) Calls turbid_setup (LED/Optics)
@@ -327,16 +329,21 @@ void setup()
         analogWrite(MIXER, 0 );     // Mixer off
 	interval = millis();
 
-//	if (true)
-	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
+//	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
+	if (true)
 	{
-		id = '3';	// Default Lagoon ID 
+		id = '2';	// Default Lagoon ID 
 		target_temperature = 34.5;
 		mixerspeed = MIXERSPEED;
 		valve.setOutflowms(15000);
+		valve.setAngle('0',0);
+		valve.setAngle('1',45);
 		valve.setup_valve(1, 8000);
+		valve.setAngle('2',90);
 		valve.setup_valve(2, 6000);
+		valve.setAngle('3',135);
 		valve.setup_valve(3, 4000);
+		valve.setAngle('4',180);
 		valve.setup_valve(4, 2000);
 		saveRestore(SAVE);
 	}
