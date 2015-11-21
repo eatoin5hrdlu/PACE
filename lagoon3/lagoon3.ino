@@ -35,6 +35,7 @@ TEMPERATURE temp = TEMPERATURE(0);  // Analog Temperature on pin A0
 
 boolean auto_temp;   // Automatically control Heater
 boolean auto_valve;  // Automatically control Valves
+boolean auto_mixer;  // Automatically cycle mixer
 
 /* EEPROM SAVE AND RESTORE OF ID AND CALIBRATION CONSTANTS */
 
@@ -55,7 +56,7 @@ void checkTemperature()
 {
 float t = temp.celcius();
 	if (t < target_temperature)        digitalWrite(HEATER,1);
-	if (t > target_temperature + 0.25) digitalWrite(HEATER,0);
+	if (t > target_temperature + 0.5)  digitalWrite(HEATER,0);
 }
 
 // 'RomAddress' global will be bumped by successive
@@ -72,15 +73,15 @@ void moveData(int op, int size, byte *loc)
 
 char *saveRestore(int op)
 {
-	if (op == SAVE) return("save.");
-	else            return("restore.");
 	RomAddress = 0;
 	moveData(op, 1, &id);
-	moveData(op, sizeof(float), (byte *) &target_temperature);
-	moveData(op, sizeof(int),   (byte *) &mixerspeed);
-	moveData(op, sizeof(int),   (byte *) valve.getOutflowms());
-	moveData(op, (NUM_VALVES+1)*sizeof(int), (byte *) valve.getTimes());
-	moveData(op, (NUM_VALVES+1)*sizeof(byte), (byte *) valve.getAngles());
+	moveData(op, sizeof(float),      (byte *) &target_temperature);
+	moveData(op, sizeof(int),        (byte *) &mixerspeed);
+	moveData(op, sizeof(int),                valve.getOutflowms());
+	moveData(op, (NUM_VALVES+1)*sizeof(int), valve.getTimes());
+	moveData(op, (NUM_VALVES+1)*sizeof(byte),valve.getAngles());
+	if (op == SAVE) return("save.");
+	else            return("restore.");
 }
 #endif
 
@@ -124,20 +125,19 @@ void printHelp(void)
 
 void mixer(byte v)
 {
-return;
 	if (v == 0)
 		analogWrite(MIXER,0);
 	else 
 	    for(int i=3; i<11; i++) {
 		analogWrite(MIXER, i*mixerspeed/10);
 		if (auto_valve) valve.checkValve();
-		delay(500);
+		delay(400);
  	    }
 }
 
 boolean lagoon_command(char c1, char c2, int value)
 {
-char reply[40];
+char reply[80];
 byte d;
 int tmp;
      reply[0] = 0;  
@@ -153,9 +153,11 @@ int tmp;
 			if (d == 1) {
 				auto_temp = true;
 				auto_valve = true;
+				auto_mixer = true;
 			} else {
 				auto_temp = false;
 				auto_valve = false;
+				auto_mixer = false;
 			}
 			break;
 		case 'c':
@@ -186,9 +188,9 @@ int tmp;
 			break;
 		case 'l':
 	                if (d == 1)
-				digitalWrite(LED, 0); // Active low
-			else
 				digitalWrite(LED, 1);
+			else
+				digitalWrite(LED, 0);
 			break;
 		case 'm':
 			Serial.print("mixer(");
@@ -219,8 +221,7 @@ int tmp;
 		case 'r':  
 			switch(c2) {
 				case 'v': valve.report(reply);
-					  Serial.println(reply);
-					   break;
+				     	  break;
 				case 't':
 					Serial.print("temperature(");
 					Serial.print(temp.celcius());
@@ -233,10 +234,16 @@ int tmp;
 		case 's':
 			strcpy(reply,saveRestore(SAVE));
 			break;
-		case 't':
-		        if (c2 == 's') target_temperature = ((float)value)/10.0;
-			else {
-			tmp = (int) (temp.celcius()*10.0);
+		case 't': // set target(ts), get target(tt) or get current temp (t)
+		        if (c2 == 's')
+			   target_temperature = ((float)value)/10.0;
+		        else {
+			     if (c2 == 't') {
+			     	    tmp = (int) (target_temperature*10.0);
+				    Serial.print("target_");
+			     }
+			     else
+				tmp = (int) (temp.celcius()*10.0);
 			     Serial.print("temperature(");
 			     Serial.print(tmp);
 			     Serial.println(").");
@@ -320,7 +327,7 @@ void setup()
 {
 	pinMode(VALVEENABLE,OUTPUT); digitalWrite(VALVEENABLE,1); //no power to valve
 	pinMode(LAGOONOUT, OUTPUT);  digitalWrite(LAGOONOUT, 0);
-	pinMode(HEATER,    OUTPUT);  digitalWrite(HEATER, 1);
+	pinMode(HEATER,    OUTPUT);  digitalWrite(HEATER, 0);
 	pinMode(LED,       OUTPUT);  digitalWrite(LED, 1);
 
 	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
@@ -329,8 +336,8 @@ void setup()
         analogWrite(MIXER, 0 );     // Mixer off
 	interval = millis();
 
-//	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
-	if (true)
+//	if (true)
+	if (EEPROM.read(0)==0 || EEPROM.read(0)==255)	// First time
 	{
 		id = '2';	// Default Lagoon ID 
 		target_temperature = 34.5;
@@ -354,7 +361,9 @@ void setup()
 	once = true;
 	auto_temp = true;  // Maintain Temperature Control
 	auto_valve = true;  // Maintain Flow
-	calibration = 0;
+	auto_mixer = true;  // Cycle magnetic mixer to avoid stalled stir-bar
+
+calibration = 0;    // In/Out flows normal (calibration off)
 	valve.calibrate(calibration);
 }
 
@@ -362,11 +371,23 @@ int cnt_light = 0;
 int cnt_mixer = 0;
 void loop()
 {
+int t;
 	respondToRequest();     // Check for command
 	delay(100);
 	if (auto_temp)		// Check and update heater(s)
 		checkTemperature();
 	if (auto_valve) {
 		valve.checkValve();
+	}
+
+       // Check valve timing regularly during "longish" mixer spin down/up
+
+       if (auto_mixer && (cnt_mixer++ % 5000 == 0)) {
+	   mixer(0);
+	   for (t=0;t<5;t++) {
+	   	if (auto_valve) valve.checkValve();
+		delay(400);
+	   }
+	   mixer(1);
 	}
 }

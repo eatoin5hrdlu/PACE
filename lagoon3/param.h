@@ -15,7 +15,7 @@
 #define HEATER         11
 #define MIXER           3     // PWM for 12V motor
 
-#define MIXERSPEED 180   // PWM value for top mixer speed
+#define MIXERSPEED 50   // PWM value for top mixer speed
 
 #define DEFAULT_CYCLETIME 30 // This can be changed remembered(EEPROM)
 

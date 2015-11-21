@@ -111,14 +111,17 @@ boolean checkValve(void) {
   return true;
 }
 
-  int *getTimes()               { return &valve_time[0];   }
+  byte *getTimes()              { return (byte *)&valve_time[0];       }
   int getTime(int vchar)        { return valve_time[(int)(vchar-'0')]; }
   int setTime(char vchar, int t){ valve_time[(int)(vchar-'0')] = t; }
-  byte *getAngles()             { return &valve_angle[0];   }
+
+  byte *getAngles()              { return &valve_angle[0];   }
   int setAngle(char vchar, int a){ valve_angle[(int)(vchar-'0')] = a; }
   int setOutflowms(int outms)   { outflowms = outms; }
-  int *getOutflowms()           { return &outflowms; }
+
+  byte *getOutflowms()          { return (byte *)&outflowms; }
   void calibrate(int c)         { calibration = c; }
+
  private:
   int size;                         // Number of positions
   int current;                      // Current position

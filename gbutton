@@ -15,7 +15,8 @@
 parse_reply(Reply, Term, Default) :-
 	catch( atom_to_term(Reply,Term,_TMBindings),
 	       Exception,
-	       ( writeln(caught(Exception,atom_to_term(Reply))), Term = Default)).
+	       ( writeln(caught(Exception,atom_to_term(Reply))), Term = exception(Exception))),
+	(var(Term) -> Term = Default ; true).
 
 getIPfromMAC(_,_) :- fail.
 
@@ -196,7 +197,7 @@ update(Self) :->
 	send_super(Self,converse,'t'),
         get(Self,slot,reply,Reply),
 	writeln(cellstatreply(Reply)),
-	parse_reply(Reply, temperature(Temp), temperature(113)),
+	parse_reply(Reply, temperature(Temp), temperature(11.3)),
         send(Self,slot,temperature,Temp),
         get(Self,slot,temperature_t,Target),
 	range_color(Target, Temp, Tc),
@@ -240,10 +241,16 @@ initialise(Self, Label:[name]) :->
 	send(Self, slot, fluorescence, 0.0).
 
 update(Self) :->
+        get(Self,slot,socket,-1),
+        get(Self,slot,label,Label),
+	write('offline->'),
+	!.
+
+update(Self) :->
 	send_super(Self,converse,'t'),
         get(Self,slot,reply,Reply),
 	writeln(lagoonreply(Reply)),
-	parse_reply(Reply,temperature(TempInt),temperature(111)),
+	parse_reply(Reply,target_temperature(TempInt),target_temperature(111)),
 	Temp is float(TempInt)/10.0,
         send(Self,slot,temperature,Temp),
         get(Self,slot,level,Level),
