@@ -1,4 +1,3 @@
-
 :- use_module(library(time)).
 :- use_module(library(pce)).
 :- use_module(library(process)).
@@ -24,7 +23,7 @@ level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
 :- [gbutton].
 
 :- dynamic target_value/2, current_value/4, current_value/2, screen/4.
-:- dynamic component/2, levelStream/1, air/0, tauto/0.
+:- dynamic component/2, levelStream/1, air/0, toggle_auto/0.
 
 %
 % System Configuration
@@ -60,7 +59,12 @@ level_cmd_dir(['/usr/bin/python','/home/peter/src/PACE/ipcam.py'],
 tabs(1).
 
 :- dynamic debug/0.
-debug.
+debug.                % Will be retracted by save_evostat (building binary)
+
+
+% All messages to logfile (otherwise, message window) Linux only
+:- dynamic logfile/1.
+logfile(logfile).
 
 check_file(Root) :-   % consult(foo) will work for files named foo or foo.pl
 	( exists_file(Root)
@@ -153,11 +157,13 @@ pl2py(Term) --> { Term =.. [F|Args],  % NESTED DICTIONARY  f(g(a),...)
 % We call append/1 because redirected logfile output has been closed.
 
 pathe_report(verbose) :-
-    append(logfile),
+    logfile(File),
+    append(File),
     writeln(verbose_test_report1).
 
 pathe_report(moderate) :-
-    append(logfile),
+    logfile(File),
+    append(File),
     writeln(moderate_test_report).
 
 resize(Thing) :-
@@ -332,9 +338,9 @@ l1(_W) :-> "User pressed the L1 button"::
 lagoon1(_W) :->
        "User selected Lagoon 1"::
        component(lagoon1,L), writeln(calibrate(lagoon1)),
-        ( tauto ->
-	     retract(tauto), Cmd = 'a0'
-	 ;   assert(tauto), Cmd = 'a1'
+        ( toggle_auto ->
+	     retract(toggle_auto), Cmd = 'a0'
+	 ;   assert(toggle_auto), Cmd = 'a1'
 	),
         send(L,converse,Cmd).
 
@@ -519,24 +525,25 @@ c(Name) :-
 
 main :-      pce_main_loop(main).
 
-main(_Argv) :- 
-        cd('/home/peter/src/PACE'),  % savestate can now be run from anywhere
+main(_Argv) :-
+        ( current_prolog_flag(windows, true) -> retract(logfile(_)) ; true ),
+        level_cmd_dir(_,HomeDir),
+        cd(HomeDir),              % savestate can be run from anywhere
+	(logfile(File)
+	 -> tell(File),
+	    telling(S),
+	    set_stream(S,buffer(line)),
+	    set_stream(user_error,buffer(line)),
+	    set_stream(S,alias(user_error))
+	 ; true
+        ),
         current_prolog_flag(pid,PID),
-        (PID < 900 -> sleep(30) ; true),  % Delay when started at boot time (low process ID number)
+        (PID < 900 -> sleep(30) ; true),  % Delay if OS just started (low PID)
         set_prolog_flag(save_history,false),
 	at_halt(pathe_report(verbose)),
-        load_foreign_library(plblue),
-	(debug -> true
-        ;
-	tell(logfile),
-	telling(S),
-	set_stream(S,buffer(line)),
-	set_stream(user_error,buffer(line)),
-	set_stream(S,alias(user_error))
-        ),
-%	writeln(argv(Argv)),
+        load_foreign_library(foreign(plblue)),
+
 	config_name(Root),          %  Find out configuration name
-%	writeln(consult(Root)),
 	consult(Root),              % Consult it
 	config(List),                         % Get the configuration data
 %	writeln(configuration(List)),
@@ -558,14 +565,26 @@ main(_Argv) :-
 	told,
 	c(Root).
 
+os_emulator(E) :-    
+    current_prolog_flag(windows, true),
+    !,
+    ( logfile(_)
+     -> E = swi('bin/xpce-stub.exe') % All msgs to logfile
+     ;  E = swi('bin/swipl-win.exe') % Use window for msgs
+    ).
+
+os_emulator('/usr/bin/swipl').
+
+
 save_evostat :-
-%        retract(debug),
-        pce_autoload_all,
-        pce_autoload_all,
-        Options = [stand_alone(true), goal(main)],
-        ( current_prolog_flag(windows,true)
-         -> qsave_program(evostat, [emulator(swi('bin/xpce-stub.exe'))|Options])
-        ;   qsave_program(evostat, [emulator('/usr/bin/swipl')|Options])
-        ).
+    os_emulator(Emulator),
+    retract(debug),
+    pce_autoload_all,
+    pce_autoload_all,
+    Options = [stand_alone(true), goal(main)],
+    qsave_program(evostat, [emulator(Emulator)|Options]).
+
+
+
 
 

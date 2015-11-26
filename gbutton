@@ -52,8 +52,12 @@ repeat1(1) :- !.
 repeat1(_).
 repeat1(N) :- M is N-1, repeat1(M).
 
-:- (current_prolog_flag(arch,'i386-win32')->BT=foreign(plblue);BT=plblue),
-   load_foreign_library(BT), writeln('plblue (BLUETOOTH) loaded').
+:- writeln(ingbutton),
+   ( current_prolog_flag(arch,'i386-win32')
+     -> load_foreign_library(foreign(plblue))
+     ;  load_foreign_library(plblue)
+   ),
+   writeln('plblue (BLUETOOTH) loaded').
 
 :- pce_begin_class(snapshot, label).
 
@@ -93,6 +97,7 @@ update(Self) :->
 variable(socket,  int, get, "Bluetooth/IP Socket" ).
 variable(mac, name, get,    "Bluetooth/IP MAC Address" ).
 variable(reply, name, get, "Last Message from Device" ).
+variable(levelUnits, name,  get, "% or mL (usually)").
 
 % Current Settings
 variable(od600,       int, get, "Optical Density (600nM)").
@@ -102,16 +107,19 @@ variable(temperature, real, get, "Temperature").
 variable(od600_t,       int, get, "Target Optical Density (600nM)").
 variable(temperature_t, real, get, "Target Temperature").
 
-initialise(B, Label:[name]) :->
+initialise(Self, Label:[name]) :->
 	"Initialise the button and connect to device"::
-        send_super(B, initialise(Label)),
-	send(B, slot, temperature_t, 37.0),
-	send(B, slot, od600_t, 400),
-	send(B, slot, temperature, 0.0),
-	send(B, slot, od600, 0.0),
-	send(B, slot, socket, -1),
-	send(B, slot, mac, discover).
+        send_super(Self, initialise(Label)),
+	send(Self, slot, levelUnits, 'mL'),
+	send(Self, slot, temperature_t, 37.0),
+	send(Self, slot, od600_t, 400),
+	send(Self, slot, temperature, 0.0),
+	send(Self, slot, od600, 0.0),
+	send(Self, slot, socket, -1),
+	send(Self, slot, mac, discover).
 
+levelUnits(Self,Units) :->
+       send(Self, slot, levelUnits, Units).
 
 mix_colors(   C,   C,      C) :- !.
 mix_colors(   _,blue, purple) :- !.
@@ -134,11 +142,16 @@ temp(Self, Temp:[real]) :->
 converse(Self, Cmd) :->
 	"Send command to Bluetooth Socket and save Reply ( Cellstat/Lagoon )"::
         get(Self, socket, Socket),
-	(Socket = -1 -> send(Self, slot, reply, 'no_connection.')
-	; ( bt_converse(Socket, Cmd, Reply)
+	get(Self,label,Who),
+	(Socket = -1
+	 -> get(Self, mac, Addr),
+	    concat_atom(['no_connection(',Who,',''',Addr,''').'], Error1),
+	    send(Self, slot, reply, Error1)
+	 ; ( bt_converse(Socket, Cmd, Reply)
 	    -> send(Self, slot, reply, Reply)
-	    ; send(Self, slot, reply, 'failed.')
-	  )
+	    ; concat_atom(['failed(',Who,',"',Cmd,'").'],Error2),
+	      send(Self, slot, reply, Error2)
+	   )
 	).
 
 mac(Self, Addr:[name]) :->
@@ -231,20 +244,20 @@ variable(rate_input, real, get, "Calculated Input Flow Rate").
 variable(rate_output, real, get, "Calculated Output Flow Rate").
 variable(calibration, name, get, "Calibration State Machine").
 
+
 initialise(Self, Label:[name]) :->
 	"Initialise the lagoon"::
         send_super(Self, initialise(Label)),
 	send(Self, slot, calibration, normal),
-	send(Self, slot, level, 0.0),
+	send(Self, slot, level, 10.0),
 	send(Self, slot, level_t, 0.3),
 	send(Self, slot, fluorescence_t, 0.2),
 	send(Self, slot, fluorescence, 0.0).
 
 update(Self) :->
         get(Self,slot,socket,-1),
-        get(Self,slot,label,Label),
-	write('offline->'),
-	!.
+	!,
+	send(Self,colour,colour(red)).
 
 update(Self) :->
 	send_super(Self,converse,'t'),
@@ -287,6 +300,7 @@ calibrate(Self) :->
     CLevel is 1.1 * Level,
     send(Self,slot,calibrate_level,CLevel).
 %    send(Self,command, do).  % Disable Output Flow(s)
+
 
 setLevel(Self,Level) :->
        send(Self, slot, level, Level).
