@@ -88,6 +88,7 @@ char reply[80];
 		     break;
 		case 't':
 		     drains.setValve(c2-'0',value);
+		     break;
 		default:
 		     return false;
 	}
@@ -123,8 +124,6 @@ void respondToRequest(void)
  *		2) Calls setup
  */
 
-boolean once;
-
 void setup()
 {
 	Serial.begin(9600); // 9600, 8-bits, no parity, one stop bit
@@ -149,12 +148,9 @@ void setup()
 		drains.setup_valve(4,LAGOON4_DRAIN,4000);
 		saveRestore(SAVE);
 	}
-	else
-	{
-		saveRestore(RESTORE);
-	}
-	drains.enable(1);
-	once = true;
+	else    saveRestore(RESTORE);
+
+        drains.enable(1);
 }
 
 void loop()

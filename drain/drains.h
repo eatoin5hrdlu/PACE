@@ -25,8 +25,11 @@ class DRAINS
     size = n;
     current = size;
     for(i=0;i<MAX_VALVES;i++)   // Mark as undefined
-    valve_pin[i] = -1;
-    cycletime = DEFAULT_CYCLETIME*1000; // Cycle in seconds, store as ms
+      valve_pin[i] = -1;
+    // UL below is necessary, this is a bitch! Try #define
+    // DEFAULT_CYCLETIME 31 (vs 33), one works the other doesn't!!!
+
+    cycletime = 1000UL * DEFAULT_CYCLETIME; // Cycle in seconds, store as ms
     lasttime = millis();
   }
   
@@ -61,22 +64,13 @@ class DRAINS
    boolean checkValves(void) {
       unsigned long now = millis();
 
-      Serial.print(".");
-      Serial.print(now);
-      Serial.print(" > ");
-      Serial.print(lasttime);
-      Serial.print(" + ");
-      Serial.println(cycletime);
-
       if (now > lasttime + cycletime) { // Time to start a drain cycle
-	Serial.println("starting a cycle");
 	current = 0;
 	openValve(current);
 	lasttime = millis();
       } else  // Check whether it is time for the next valve
 	if (current < size)
 	  {
-	    Serial.println("in a cycle");
 	    if (now > valve_open[current] + valve_time[current])
 	      {
 		closeValve(current);
@@ -95,9 +89,7 @@ class DRAINS
     if (valve_time[v] != 0 && (enabled == 1) )
       {
 	digitalWrite(valve_pin[v],1);
-	Serial.print("open(");
-	Serial.print(v);
-	Serial.println(").");
+	//Serial.print("open(");Serial.print(v);Serial.print(").");
 
       }
     valve_open[v] = millis(); // when this valve was opened
@@ -106,9 +98,7 @@ class DRAINS
   void closeValve(int v)
   {
     digitalWrite(valve_pin[v],0);
-    Serial.print("close(");
-    Serial.print(v);
-    Serial.println(").");
+    // Serial.print("close(");Serial.print(v); Serial.println(").");
     valve_open[v] = 0;
   }
 
@@ -121,7 +111,7 @@ class DRAINS
   int size;                         // Number of valves
   int current;
   int enabled;
-  unsigned long cycletime; // Cycle duration (always > valve on time)
+  unsigned long cycletime; // Cycle duration > sum(valve-on-times)
   unsigned long lasttime;  // Beginning of current time interval
   unsigned long valve_open[MAX_VALVES];  // When was the valve opened
   byte          valve_pin[MAX_VALVES];
