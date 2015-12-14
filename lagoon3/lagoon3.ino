@@ -343,6 +343,7 @@ void setup()
 		target_temperature = 34.5;
 		mixerspeed = MIXERSPEED;
 		valve.setOutflowms(15000);
+		valve.setOutflowPin(LAGOONOUT);
 		valve.setAngle('0',0);
 		valve.setAngle('1',45);
 		valve.setup_valve(1, 8000);

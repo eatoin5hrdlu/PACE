@@ -46,6 +46,10 @@ class VALVE
     swrite(valve_angle[v]);
   }
 
+  void set_drain_pin(int p) {
+    drain_pin = p;
+  }
+
   void setup_valve(int v, int tm) {
     valve_open[v] = 0;
     if (v == size-1)
@@ -91,7 +95,7 @@ boolean checkValve(void) {
   
    if ((outflowon+outflowms) < now )
      {
-       digitalWrite(LAGOONOUT,0);  // OUTFLOW OFF AT END OF outflowms
+       digitalWrite(outflowPin,0);  // OUTFLOW OFF AT END OF outflowms
        outflowon = 0;
      }
 
@@ -104,7 +108,7 @@ boolean checkValve(void) {
       current = 0;
       next_valve();
       if (calibration != 1) {
-	digitalWrite(LAGOONOUT,1);        // OUTFLOW ON AT START OF CYCLE
+	digitalWrite(outflowPin,1);        // OUTFLOW ON AT START OF CYCLE
 	outflowon = millis();
       }
     }
@@ -118,6 +122,7 @@ boolean checkValve(void) {
   byte *getAngles()              { return &valve_angle[0];   }
   int setAngle(char vchar, int a){ valve_angle[(int)(vchar-'0')] = a; }
   int setOutflowms(int outms)   { outflowms = outms; }
+  int setOutflowpin(int p)      { outflowPin = p; }
 
   byte *getOutflowms()          { return (byte *)&outflowms; }
   void calibrate(int c)         { calibration = c; }
@@ -137,6 +142,7 @@ boolean checkValve(void) {
   unsigned long cycletime; // Cycle duration (always > valve on time)
   unsigned long outflowon;
   int outflowms;
+  int outflowPin;
  } ;
 #endif
 
